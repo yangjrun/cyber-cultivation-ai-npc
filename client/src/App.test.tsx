@@ -39,7 +39,7 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const input = screen.getByPlaceholderText("向白璃开口……") as HTMLInputElement;
+    const input = screen.getByRole("textbox") as HTMLTextAreaElement;
     await user.type(input, "雷".repeat(100));
 
     expect(Array.from(input.value)).toHaveLength(80);
@@ -56,7 +56,7 @@ describe("App", () => {
       expect(screen.getByText("能做，但你得先偷一枚监察密钥。")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("tone：试探")).toBeInTheDocument();
+    expect(screen.getByText("语气：试探")).toBeInTheDocument();
     expect(screen.getByText("玩家想要躲避监察院扫描的丹药。")).toBeInTheDocument();
     expect(screen.getByText("任务已触发：偷取监察密钥。")).toBeInTheDocument();
     expect(screen.getByText("21")).toBeInTheDocument();
@@ -67,12 +67,19 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const input = screen.getByPlaceholderText("向白璃开口……");
+    const input = screen.getByRole("textbox");
     await user.type(input, "买药");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     await waitFor(() => {
-      expect(screen.getByText("通讯被黑市噪声干扰，请稍后再试。"));
+      expect(screen.getByText("链路中断：无法连接白璃丹铺。")).toBeInTheDocument();
     });
+  });
+
+  it("renders the initial welcome message and system log", () => {
+    render(<App />);
+
+    expect(screen.getByText("新面孔？灵根波形这么脏，是黑市货吧。")).toBeInTheDocument();
+    expect(screen.getByText("已连接白璃丹铺。")).toBeInTheDocument();
   });
 });

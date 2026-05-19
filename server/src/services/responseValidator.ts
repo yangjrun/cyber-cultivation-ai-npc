@@ -20,8 +20,8 @@ export const fallbackResponse: ValidatedNpcResponse = {
 
 const allowedIntentSet = new Set<string>(allowedIntents);
 
-export function validateLlmResponse(rawText: string): ValidatedNpcResponse {
-  const parsed = parseModelOutput(rawText);
+export function validateLlmResponse(raw: string | object): ValidatedNpcResponse {
+  const parsed = typeof raw === "string" ? parseModelOutput(raw) : raw;
 
   if (!isRecord(parsed)) {
     return createFallback();

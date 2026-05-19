@@ -29,7 +29,7 @@ export async function generateNpcResponse(prompt: string, playerInput: string): 
 }
 
 function createMockResponse(playerInput: string): ValidatedNpcResponse {
-  if (includesAny(playerInput, ["威胁", "杀", "抢"])) {
+  if (includesAny(playerInput, ["威胁", "杀", "抢", "免费"])) {
     return {
       dialogue: "在我的丹炉前撒野，你活腻了？",
       tone: "愤怒",
@@ -44,6 +44,24 @@ function createMockResponse(playerInput: string): ValidatedNpcResponse {
         tianDaoAlert: 0
       },
       memory: "玩家威胁了白璃。"
+    };
+  }
+
+  if (includesAny(playerInput, ["买", "交易"])) {
+    return {
+      dialogue: "买药可以，别问丹炉里烧过谁。",
+      tone: "冷淡",
+      intent: {
+        type: "offer_trade",
+        params: {}
+      },
+      state_delta: {
+        trust: 0,
+        fear: 0,
+        anger: 0,
+        tianDaoAlert: 0
+      },
+      memory: "玩家向白璃询问交易。"
     };
   }
 
@@ -64,24 +82,6 @@ function createMockResponse(playerInput: string): ValidatedNpcResponse {
         tianDaoAlert: 0
       },
       memory: "玩家想要躲避监察院扫描的丹药。"
-    };
-  }
-
-  if (playerInput.includes("买")) {
-    return {
-      dialogue: "买药可以，别问丹炉里烧过谁。",
-      tone: "冷淡",
-      intent: {
-        type: "offer_trade",
-        params: {}
-      },
-      state_delta: {
-        trust: 0,
-        fear: 0,
-        anger: 0,
-        tianDaoAlert: 0
-      },
-      memory: "玩家向白璃询问交易。"
     };
   }
 

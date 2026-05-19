@@ -4,15 +4,27 @@ type MemoryPanelProps = {
 
 export function MemoryPanel({ memories }: MemoryPanelProps) {
   return (
-    <section className="rounded-2xl border border-violet-400/25 bg-slate-950/75 p-4">
-      <h2 className="mb-3 text-base font-semibold text-violet-200">最近记忆</h2>
+    <section className="cyber-panel cyber-corner relative overflow-hidden p-4">
+      <header className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-violet-200">
+          白璃的记忆
+        </h2>
+        <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
+          local cache
+        </span>
+      </header>
+
       {memories.length === 0 ? (
         <p className="text-sm text-slate-500">暂无可用记忆。</p>
       ) : (
         <ul className="space-y-2 text-sm text-slate-200">
           {memories.map((memory, index) => (
-            <li key={`${memory}-${index}`} className="rounded-lg border border-violet-400/10 bg-violet-400/10 p-2">
-              {memory}
+            <li
+              key={`${index}-${memory}`}
+              className="flex items-start gap-2 rounded-md border border-violet-400/15 bg-violet-500/5 px-3 py-2"
+            >
+              <span className="mt-0.5 text-violet-300">◇</span>
+              <span className="flex-1 leading-6">{memory}</span>
             </li>
           ))}
         </ul>
