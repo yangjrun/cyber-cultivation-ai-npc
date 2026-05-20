@@ -2,6 +2,7 @@ import type { Database } from "better-sqlite3";
 import { runInitialMigration } from "./001_init.js";
 import { runCultivationMigration } from "./002_cultivation.js";
 import { runWorldMigration } from "./003_world.js";
+import { runPersonalityMigration } from "./004_personality.js";
 
 type Migration = {
   version: string;
@@ -11,7 +12,8 @@ type Migration = {
 const migrations: Migration[] = [
   { version: "001_init", run: runInitialMigration },
   { version: "002_cultivation", run: runCultivationMigration },
-  { version: "003_world", run: runWorldMigration }
+  { version: "003_world", run: runWorldMigration },
+  { version: "004_personality", run: runPersonalityMigration }
 ];
 
 export function runMigrations(db: Database): void {

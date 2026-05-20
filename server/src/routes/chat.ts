@@ -2,6 +2,7 @@ import { Router, type Response } from "express";
 import { applyStateDelta, executeIntent, getNpcProfile, getNpcState, resetNpcState } from "../services/gameState.js";
 import { generateNpcResponse } from "../services/llmClient.js";
 import { addMemory, clearMemories, getRecentMemories, retrieveRelevantMemories } from "../services/memoryStore.js";
+import { deriveEvents, evaluateRules, getPersonality, recordEvents, resetPersonality } from "../services/personalityEvolution.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
 import { buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
 import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "../services/questEngine.js";
@@ -32,6 +33,7 @@ chatRouter.post("/reset", (req, res, next) => {
     const scopedNpcId = makeScopedNpcId(sessionId, npcId);
     const state = resetNpcState(scopedNpcId);
     clearMemories(scopedNpcId);
+    resetPersonality(sessionId, npcId);
 
     res.json({ state, memories: [], actionResult: "" });
   } catch (error) {
@@ -64,8 +66,9 @@ chatRouter.post("/", async (req, res, next) => {
     const activeSceneId = getActiveSceneId(sessionId);
     const sceneSnapshot = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
     const activeQuests = getRelevantQuests(sessionId, npcId);
+    const evolvedTraits = getPersonality(sessionId, npcId).evolvedTraits;
 
-    const systemPrompt = buildSystemPrompt({ npcId });
+    const systemPrompt = buildSystemPrompt({ npcId, evolvedTraits });
     const userTurn = buildUserTurn({
       scopedNpcId,
       npcId,
@@ -83,6 +86,12 @@ chatRouter.post("/", async (req, res, next) => {
     applyStateDelta(scopedNpcId, npcResponse.state_delta);
     const baseActionResult = executeIntent(scopedNpcId, npcResponse.intent);
     const questResult = evaluateQuestIntent(sessionId, scopedNpcId, npcResponse.intent);
+
+    const personalityEvents = deriveEvents(npcResponse.intent, npcResponse.state_delta, questResult.statusChanges);
+    if (personalityEvents.length > 0) {
+      recordEvents(sessionId, npcId, personalityEvents);
+      evaluateRules(sessionId, npcId);
+    }
 
     const actionResult = [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / ");
 

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryCrystalPage } from "./pages/MemoryCrystalPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlayPage } from "./pages/PlayPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -21,6 +22,7 @@ export default function App() {
           <Route element={<Outlet />}>
             <Route path="/play" element={<PlayPage />} />
             <Route path="/play/scene/:sceneId" element={<PlayPage />} />
+            <Route path="/memory" element={<MemoryCrystalPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
@@ -33,6 +35,7 @@ export default function App() {
 function TopNav() {
   const location = useLocation();
   const onPlay = location.pathname === "/" || location.pathname.startsWith("/play");
+  const onMemory = location.pathname.startsWith("/memory");
   const onSettings = location.pathname.startsWith("/settings");
 
   return (
@@ -43,6 +46,7 @@ function TopNav() {
       </div>
       <div className="flex items-center gap-2 text-xs">
         <NavLink to="/play" label="对话" active={onPlay} />
+        <NavLink to="/memory" label="记忆水晶" active={onMemory} />
         <NavLink to="/settings" label="设置" active={onSettings} />
       </div>
     </nav>

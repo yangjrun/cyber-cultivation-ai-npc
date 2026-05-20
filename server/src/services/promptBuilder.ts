@@ -10,6 +10,7 @@ import type { SceneSnapshot } from "../types/scene.js";
 
 export type SystemPromptInput = {
   npcId: string;
+  evolvedTraits?: string[];
 };
 
 export type UserTurnInput = {
@@ -33,13 +34,14 @@ export type PromptInput = {
   activeQuests?: QuestProgress[];
 };
 
-export function buildSystemPrompt({ npcId }: SystemPromptInput): string {
+export function buildSystemPrompt({ npcId, evolvedTraits }: SystemPromptInput): string {
   const profile = getNpcProfile(npcId);
   const roleCard = getRoleCard(npcId);
   const exemplars = getExemplars(npcId);
   const questIds = getQuestsByGiver(npcId).map((quest) => quest.questId);
   const techniqueIds = Object.keys(techniques);
   const name = profile.name;
+  const evolved = normalizeEvolvedTraits(evolvedTraits);
 
   const questRule = questIds.length > 0
     ? `give_quest 的 quest_id 只能是 ${questIds.join("、")}，否则把 intent.type 改为 none。`
@@ -49,11 +51,15 @@ export function buildSystemPrompt({ npcId }: SystemPromptInput): string {
     ? `teach_technique 的 technique_id 只能是 ${techniqueIds.join("、")}，否则把 intent.type 改为 none。`
     : `teach_technique 暂未开放，任何此 intent 都应改为 none。`;
 
+  const evolvedSection = evolved.length > 0
+    ? `\n\n# 演化人格（基于历史对话累计）\n\n${evolved.map((trait) => `- ${trait}`).join("\n")}`
+    : "";
+
   return `你在扮演赛博修仙游戏里的 NPC：${name}。请像写一段游戏对白那样写一句话——${name}是一个真实的人，不是说明书。
 
 # 角色卡
 
-${roleCard}
+${roleCard}${evolvedSection}
 
 # 可执行的内部意图（intent）
 
@@ -148,6 +154,33 @@ export function buildPrompt(input: PromptInput): string {
 
 const MEMORY_MERGE_LIMIT = 5;
 const MEMORY_TRUNCATE = 60;
+const MAX_EVOLVED_TRAITS = 5;
+
+function normalizeEvolvedTraits(traits: string[] | undefined): string[] {
+  if (!traits || traits.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const trait of traits) {
+    const trimmed = trait.trim();
+
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+
+    seen.add(trimmed);
+    result.push(trimmed);
+
+    if (result.length >= MAX_EVOLVED_TRAITS) {
+      break;
+    }
+  }
+
+  return result.sort();
+}
 
 export function mergeMemoriesForPrompt(
   retrieved: Array<{ content: string }>,

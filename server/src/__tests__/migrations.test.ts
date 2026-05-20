@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { runMigrations } from "../db/migrations/index.js";
 
 describe("migrations", () => {
-  it("runs all migrations on a fresh in-memory DB and creates the phase 3 tables", () => {
+  it("runs all migrations on a fresh in-memory DB and creates the phase 3+4 tables", () => {
     const db = new DatabaseConstructor(":memory:");
     db.pragma("foreign_keys = ON");
     runMigrations(db);
@@ -21,6 +21,7 @@ describe("migrations", () => {
       "quest_progress",
       "npc_relations",
       "active_scene",
+      "npc_personality",
       "schema_migrations"
     ]));
 
@@ -31,17 +32,17 @@ describe("migrations", () => {
     const db = new DatabaseConstructor(":memory:");
     db.pragma("foreign_keys = ON");
     runMigrations(db);
-    runMigrations(db); // second call should be a no-op, not throw
+    runMigrations(db);
 
     const versions = (db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as Array<{ version: string }>)
       .map((row) => row.version);
 
-    expect(versions).toEqual(["001_init", "002_cultivation", "003_world"]);
+    expect(versions).toEqual(["001_init", "002_cultivation", "003_world", "004_personality"]);
 
     db.close();
   });
 
-  it("003_world tables enforce FK cascade on session delete", () => {
+  it("phase 3+4 tables enforce FK cascade on session delete", () => {
     const db = new DatabaseConstructor(":memory:");
     db.pragma("foreign_keys = ON");
     runMigrations(db);
@@ -53,14 +54,18 @@ describe("migrations", () => {
       .run(sessionId, "steal_inspector_key", "accepted", "{}", now);
     db.prepare("INSERT INTO active_scene (session_id, scene_id, updated_at) VALUES (?, ?, ?)")
       .run(sessionId, "black_market", now);
+    db.prepare("INSERT INTO npc_personality (session_id, base_npc_id, evolved_traits_json, counters_json, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run(sessionId, "baili", "[]", "{}", now);
 
     db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 
     const quests = db.prepare("SELECT * FROM quest_progress WHERE session_id = ?").all(sessionId);
     const scenes = db.prepare("SELECT * FROM active_scene WHERE session_id = ?").all(sessionId);
+    const personality = db.prepare("SELECT * FROM npc_personality WHERE session_id = ?").all(sessionId);
 
     expect(quests).toEqual([]);
     expect(scenes).toEqual([]);
+    expect(personality).toEqual([]);
 
     db.close();
   });

@@ -8,6 +8,8 @@ import { chatRouter } from "./routes/chat.js";
 import { breakthroughRouter, cultivateRouter } from "./routes/cultivation.js";
 import { debugRouter, isDebugApiEnabled } from "./routes/debug.js";
 import { inventoryRouter } from "./routes/inventory.js";
+import { memoryRouter } from "./routes/memory.js";
+import { personalityRouter } from "./routes/personality.js";
 import { questRouter } from "./routes/quest.js";
 import { sceneRouter } from "./routes/scene.js";
 import { sessionRouter } from "./routes/session.js";
@@ -24,6 +26,8 @@ export function createApp() {
   app.use("/api/inventory", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "背包请求过于频繁，请稍后再试。" }), inventoryRouter);
   app.use("/api/scenes", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "场景请求过于频繁，请稍后再试。" }), sceneRouter);
   app.use("/api/quests", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "任务请求过于频繁，请稍后再试。" }), questRouter);
+  app.use("/api/memory", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "记忆请求过于频繁，请稍后再试。" }), memoryRouter);
+  app.use("/api/personality", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "人格请求过于频繁，请稍后再试。" }), personalityRouter);
 
   if (isDebugApiEnabled()) {
     app.use("/api/debug", createRateLimit({ windowMs: 60_000, maxRequests: 120, message: "调试请求过于频繁，请稍后再试。" }), debugRouter);
