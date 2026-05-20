@@ -1,36 +1,16 @@
+import { npcProfiles as npcProfilesData } from "../data/npcs.js";
 import { getDb } from "../db/connection.js";
 import { sessionExists } from "./playerStore.js";
+import { parseScopedNpcId, scopedNpcId, SCOPED_NPC_SEPARATOR } from "./scopedNpcId.js";
 import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta } from "../types/npc.js";
 
 export const allowedIntents = ["none", "offer_trade", "complete_trade", "teach_technique", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
 
-export const npcProfiles: Record<string, NpcProfile> = {
-  baili: {
-    npc_id: "baili",
-    name: "白璃",
-    role: "黑市炼丹师",
-    faction: "无相黑市",
-    personality: ["谨慎", "毒舌", "务实", "重视等价交换"],
-    speaking_style: "短句、冷淡、带讽刺，讨厌废话",
-    goal: "研究屏蔽天道云追踪的丹药，并攒够资源离开九龙下城",
-    secret: "她的师父被太清监察院抓走",
-    knowledge_scope: ["黑市丹药", "非法灵根芯片", "太清监察院巡逻规律", "九龙下城传闻"],
-    cannot_know: ["最终Boss身份", "天道云核心真相", "玩家未来选择"]
-  }
-};
-
-const initialNpcStates: Record<string, NpcState> = {
-  baili: {
-    trust: 20,
-    fear: 10,
-    anger: 0,
-    tianDaoAlert: 45
-  }
-};
-
-const scopedNpcSeparator = "::";
+export const npcProfiles: Record<string, NpcProfile> = npcProfilesData;
 
 type NpcStateRow = {
+  scoped_npc_id: string;
+  base_npc_id: string;
   trust: number;
   fear: number;
   anger: number;
@@ -44,18 +24,17 @@ export function getNpcProfile(npcId: string): NpcProfile {
     throw new Error(`Unknown NPC: ${npcId}`);
   }
 
-  return {
-    ...profile,
-    personality: [...profile.personality],
-    knowledge_scope: [...profile.knowledge_scope],
-    cannot_know: [...profile.cannot_know]
-  };
+  return cloneProfile(profile);
+}
+
+export function listKnownNpcIds(): string[] {
+  return Object.keys(npcProfiles);
 }
 
 export function getNpcState(npcId: string): NpcState {
   const row = getDb()
     .prepare("SELECT trust, fear, anger, tian_dao_alert FROM npc_states WHERE scoped_npc_id = ?")
-    .get(npcId) as NpcStateRow | undefined;
+    .get(npcId) as Omit<NpcStateRow, "scoped_npc_id" | "base_npc_id"> | undefined;
 
   if (row) {
     return mapState(row);
@@ -65,6 +44,16 @@ export function getNpcState(npcId: string): NpcState {
   persistNpcState(npcId, initialState);
 
   return { ...initialState };
+}
+
+export function getAllNpcStatesForSession(sessionId: string): Record<string, NpcState> {
+  const result: Record<string, NpcState> = {};
+
+  for (const npcId of listKnownNpcIds()) {
+    result[npcId] = getNpcState(scopedNpcId(sessionId, npcId));
+  }
+
+  return result;
 }
 
 export function applyStateDelta(npcId: string, delta: NpcStateDelta): NpcState {
@@ -144,16 +133,16 @@ function persistNpcState(npcId: string, state: NpcState): void {
 
 function getInitialState(npcId: string): NpcState {
   const baseNpcId = getBaseNpcId(npcId);
-  const initialState = initialNpcStates[baseNpcId];
+  const profile = npcProfiles[baseNpcId];
 
-  if (!initialState) {
+  if (!profile) {
     throw new Error(`Unknown NPC: ${npcId}`);
   }
 
-  return { ...initialState };
+  return { ...profile.initialState };
 }
 
-function mapState(row: NpcStateRow): NpcState {
+function mapState(row: Omit<NpcStateRow, "scoped_npc_id" | "base_npc_id">): NpcState {
   return {
     trust: row.trust,
     fear: row.fear,
@@ -163,13 +152,27 @@ function mapState(row: NpcStateRow): NpcState {
 }
 
 function getPersistableSessionId(npcId: string): string | null {
-  const [sessionId] = npcId.split(scopedNpcSeparator);
-  return npcId.includes(scopedNpcSeparator) && sessionExists(sessionId) ? sessionId : null;
+  const { sessionId } = parseScopedNpcId(npcId);
+  return sessionId && sessionExists(sessionId) ? sessionId : null;
 }
 
 function getBaseNpcId(npcId: string): string {
-  const [, baseNpcId] = npcId.split(scopedNpcSeparator);
-  return baseNpcId || npcId;
+  if (!npcId.includes(SCOPED_NPC_SEPARATOR)) {
+    return npcId;
+  }
+
+  return parseScopedNpcId(npcId).baseNpcId;
+}
+
+function cloneProfile(profile: NpcProfile): NpcProfile {
+  return {
+    ...profile,
+    personality: [...profile.personality],
+    knowledge_scope: [...profile.knowledge_scope],
+    cannot_know: [...profile.cannot_know],
+    sceneIds: [...profile.sceneIds],
+    initialState: { ...profile.initialState }
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {

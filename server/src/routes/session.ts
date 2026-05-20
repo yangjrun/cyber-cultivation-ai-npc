@@ -1,9 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getNpcState } from "../services/gameState.js";
+import { DEFAULT_SCENE_ID } from "../data/scenes.js";
+import { getAllNpcStatesForSession, getNpcState, listKnownNpcIds } from "../services/gameState.js";
 import { getInventory } from "../services/inventoryStore.js";
 import { getRecentMemories } from "../services/memoryStore.js";
+import { getAllQuestProgressForSession } from "../services/questStore.js";
+import { getActiveSceneId } from "../services/sceneStore.js";
 import { createSession, getSession } from "../services/playerStore.js";
+import { scopedNpcId } from "../services/scopedNpcId.js";
 import type { SessionSnapshot } from "../types/player.js";
 
 const sessionParamsSchema = z.object({
@@ -43,12 +47,18 @@ sessionRouter.get("/:id", (req, res, next) => {
 });
 
 function createSessionResponse(session: SessionSnapshot) {
-  const scopedNpcId = `${session.sessionId}::baili`;
+  const npcStates = getAllNpcStatesForSession(session.sessionId);
+  const activeSceneId = getActiveSceneId(session.sessionId) || DEFAULT_SCENE_ID;
+  const defaultNpcId = listKnownNpcIds()[0] ?? "baili";
+  const defaultScopedNpcId = scopedNpcId(session.sessionId, defaultNpcId);
 
   return {
     ...session,
-    npcState: getNpcState(scopedNpcId),
-    memories: getRecentMemories(scopedNpcId, 5),
+    npcStates,
+    activeSceneId,
+    quests: getAllQuestProgressForSession(session.sessionId),
+    npcState: npcStates[defaultNpcId] ?? getNpcState(defaultScopedNpcId),
+    memories: getRecentMemories(defaultScopedNpcId, 5),
     inventory: getInventory(session.sessionId)
   };
 }

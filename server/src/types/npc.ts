@@ -25,5 +25,8 @@ export type NpcProfile = {
   secret: string;
   knowledge_scope: string[];
   cannot_know: string[];
+  initialState: NpcState;
+  sceneIds: string[];
+  mockResponderTag?: string;
 };
 

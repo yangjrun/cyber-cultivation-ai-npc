@@ -29,6 +29,10 @@ describe("POST /api/chat", () => {
       qiCap: 100,
       cultivationStageIdx: 0
     });
+    expect(created.body.activeSceneId).toBe("black_market");
+    expect(Object.keys(created.body.npcStates).sort()).toEqual(["baili", "chimu", "qinggu", "suhe"]);
+    expect(created.body.npcStates.baili).toMatchObject({ trust: 20, fear: 10, anger: 0, tianDaoAlert: 45 });
+    expect(created.body.quests).toEqual([]);
 
     const restored = await request(app).get(`/api/session/${created.body.sessionId}`).expect(200);
     expect(restored.body).toEqual(created.body);
@@ -113,6 +117,19 @@ describe("POST /api/chat", () => {
     await request(app).post("/api/chat").send({ playerInput: "买药", npcId: "unknown", sessionId }).expect(404);
     await request(app).post("/api/chat").send({ playerInput: "买药", npcId: "baili" }).expect(400);
     await request(app).post("/api/chat").send({ playerInput: "买药", npcId: "baili", sessionId: "missing-session" }).expect(404);
+  });
+
+  it("accepts chat for newly registered NPCs (suhe / chimu / qinggu)", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    for (const npcId of ["suhe", "chimu", "qinggu"]) {
+      const response = await request(app)
+        .post("/api/chat")
+        .send({ playerInput: "你好", npcId, sessionId })
+        .expect(200);
+      expect(response.body.dialogue).toEqual(expect.any(String));
+    }
   });
 });
 

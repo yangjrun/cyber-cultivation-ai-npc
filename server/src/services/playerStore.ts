@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { defaultRoots, getStageByIndex } from "../data/cultivationBalance.js";
+import { DEFAULT_SCENE_ID } from "../data/scenes.js";
 import { getDb } from "../db/connection.js";
 import { initializeStarterInventory } from "./inventoryStore.js";
+import { initializeRelationsForSession } from "./npcRelationsStore.js";
 import type { ElementRoots, PlayerState, RootElement, SessionSnapshot } from "../types/player.js";
 
 const defaultPlayer = {
@@ -65,7 +67,11 @@ export function createSession(): SessionSnapshot {
       .run(sessionId, createdAt, createdAt);
     insertPlayer(sessionId, playerId, createdAt);
     initializeStarterInventory(sessionId);
+    db.prepare("INSERT INTO active_scene (session_id, scene_id, updated_at) VALUES (?, ?, ?)")
+      .run(sessionId, DEFAULT_SCENE_ID, createdAt);
   })();
+
+  initializeRelationsForSession(sessionId);
 
   const session = getSession(sessionId);
 
