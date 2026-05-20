@@ -1,4 +1,6 @@
-import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta, PlayerState } from "../types/npc.js";
+import { getDb } from "../db/connection.js";
+import { sessionExists } from "./playerStore.js";
+import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta } from "../types/npc.js";
 
 export const allowedIntents = ["none", "offer_trade", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
 
@@ -26,25 +28,14 @@ const initialNpcStates: Record<string, NpcState> = {
   }
 };
 
-export const playerState: PlayerState = {
-  name: "陆玄",
-  realm: "练气期",
-  hasIllegalChip: true,
-  visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"],
-  recentActions: ["救过白璃的药童"]
-};
-
 const scopedNpcSeparator = "::";
 
-let currentNpcStates: Record<string, NpcState> = cloneStates(initialNpcStates);
-
-function cloneStates(states: Record<string, NpcState>): Record<string, NpcState> {
-  return Object.fromEntries(Object.entries(states).map(([npcId, state]) => [npcId, { ...state }]));
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+type NpcStateRow = {
+  trust: number;
+  fear: number;
+  anger: number;
+  tian_dao_alert: number;
+};
 
 export function getNpcProfile(npcId: string): NpcProfile {
   const profile = npcProfiles[npcId];
@@ -62,18 +53,16 @@ export function getNpcProfile(npcId: string): NpcProfile {
 }
 
 export function getNpcState(npcId: string): NpcState {
-  const state = currentNpcStates[npcId];
+  const row = getDb()
+    .prepare("SELECT trust, fear, anger, tian_dao_alert FROM npc_states WHERE scoped_npc_id = ?")
+    .get(npcId) as NpcStateRow | undefined;
 
-  if (state) {
-    return { ...state };
+  if (row) {
+    return mapState(row);
   }
 
-  const baseNpcId = getBaseNpcId(npcId);
-  const initialState = initialNpcStates[baseNpcId];
-
-  if (!initialState) {
-    throw new Error(`Unknown NPC: ${npcId}`);
-  }
+  const initialState = getInitialState(npcId);
+  persistNpcState(npcId, initialState);
 
   return { ...initialState };
 }
@@ -87,10 +76,7 @@ export function applyStateDelta(npcId: string, delta: NpcStateDelta): NpcState {
     tianDaoAlert: clamp(current.tianDaoAlert + delta.tianDaoAlert, 0, 100)
   };
 
-  currentNpcStates = {
-    ...currentNpcStates,
-    [npcId]: nextState
-  };
+  persistNpcState(npcId, nextState);
 
   return { ...nextState };
 }
@@ -117,6 +103,38 @@ export function executeIntent(npcId: string, intent: NpcIntent): string {
 }
 
 export function resetNpcState(npcId: string): NpcState {
+  const initialState = getInitialState(npcId);
+  persistNpcState(npcId, initialState);
+
+  return { ...initialState };
+}
+
+export function resetGameState(): void {
+  getDb().prepare("DELETE FROM npc_states").run();
+}
+
+function persistNpcState(npcId: string, state: NpcState): void {
+  const baseNpcId = getBaseNpcId(npcId);
+  const sessionId = getPersistableSessionId(npcId);
+
+  getDb()
+    .prepare(
+      `INSERT INTO npc_states (
+        scoped_npc_id, base_npc_id, session_id, trust, fear, anger, tian_dao_alert, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(scoped_npc_id) DO UPDATE SET
+        base_npc_id = excluded.base_npc_id,
+        session_id = excluded.session_id,
+        trust = excluded.trust,
+        fear = excluded.fear,
+        anger = excluded.anger,
+        tian_dao_alert = excluded.tian_dao_alert,
+        updated_at = excluded.updated_at`
+    )
+    .run(npcId, baseNpcId, sessionId, state.trust, state.fear, state.anger, state.tianDaoAlert, new Date().toISOString());
+}
+
+function getInitialState(npcId: string): NpcState {
   const baseNpcId = getBaseNpcId(npcId);
   const initialState = initialNpcStates[baseNpcId];
 
@@ -124,19 +142,28 @@ export function resetNpcState(npcId: string): NpcState {
     throw new Error(`Unknown NPC: ${npcId}`);
   }
 
-  currentNpcStates = {
-    ...currentNpcStates,
-    [npcId]: { ...initialState }
-  };
-
   return { ...initialState };
 }
 
-export function resetGameState(): void {
-  currentNpcStates = cloneStates(initialNpcStates);
+function mapState(row: NpcStateRow): NpcState {
+  return {
+    trust: row.trust,
+    fear: row.fear,
+    anger: row.anger,
+    tianDaoAlert: row.tian_dao_alert
+  };
+}
+
+function getPersistableSessionId(npcId: string): string | null {
+  const [sessionId] = npcId.split(scopedNpcSeparator);
+  return npcId.includes(scopedNpcSeparator) && sessionExists(sessionId) ? sessionId : null;
 }
 
 function getBaseNpcId(npcId: string): string {
   const [, baseNpcId] = npcId.split(scopedNpcSeparator);
   return baseNpcId || npcId;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }

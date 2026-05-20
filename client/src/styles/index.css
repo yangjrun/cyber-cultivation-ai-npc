@@ -95,6 +95,10 @@ textarea {
   border-color: rgba(251, 191, 36, 0.32);
 }
 
+.cyber-panel--violet {
+  border-color: rgba(139, 92, 246, 0.34);
+}
+
 .cyber-corner::before,
 .cyber-corner::after {
   content: "";

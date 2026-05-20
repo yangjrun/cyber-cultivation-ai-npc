@@ -27,10 +27,3 @@ export type NpcProfile = {
   cannot_know: string[];
 };
 
-export type PlayerState = {
-  name: string;
-  realm: string;
-  hasIllegalChip: boolean;
-  visibleTraits: string[];
-  recentActions: string[];
-};

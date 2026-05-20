@@ -1,10 +1,19 @@
-import { allowedIntents, getNpcProfile, getNpcState, playerState } from "./gameState.js";
+import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
+import type { PlayerState } from "../types/player.js";
 
-export function buildPrompt(npcId: string, playerInput: string, memories: string[]): string {
+type PromptInput = {
+  npcId: string;
+  scopedNpcId: string;
+  playerInput: string;
+  memories: string[];
+  player: PlayerState;
+};
+
+export function buildPrompt({ npcId, scopedNpcId, playerInput, memories, player }: PromptInput): string {
   const profile = getNpcProfile(npcId);
-  const state = getNpcState(npcId);
+  const state = getNpcState(scopedNpcId);
   const memoryText = memories.length > 0 ? memories.map((memory) => `- ${memory}`).join("\n") : "无";
-  const playerNarrative = buildPlayerNarrative();
+  const playerNarrative = buildPlayerNarrative(player);
 
   return `你在扮演赛博修仙游戏里的 NPC：${profile.name}。她是一个真实的人，不是说明书。请像写一段游戏对白那样写她的一句话。
 
@@ -110,19 +119,20 @@ ${playerInput}
 11. JSON 之外不要输出任何字符。`;
 }
 
-function buildPlayerNarrative(): string {
+function buildPlayerNarrative(player: PlayerState): string {
   const tags = [
-    "右臂是义体，关节处有焊痕",
-    "身上常年带着一股雷罚烧过的焦味",
-    "灵气走得不干净，来路有问题",
-    playerState.recentActions.length > 0
-      ? `最近做过：${playerState.recentActions.join("，")}`
+    player.hasIllegalChip ? "持有非法灵根芯片" : "灵根登记干净",
+    ...player.visibleTraits,
+    player.recentActions.length > 0
+      ? `最近做过：${player.recentActions.join("，")}`
       : "最近没做过值得记的事"
   ];
 
   return [
-    `名字：${playerState.name}`,
-    `修为：${playerState.realm}`,
+    `名字：${player.name}`,
+    `修为：${player.realm}`,
+    `灵石：${player.spiritStones}`,
+    `灵气池：${player.qiCurrent}/${player.qiCap}`,
     `白璃眼里的他：${tags.join("；")}`
   ].join("\n");
 }

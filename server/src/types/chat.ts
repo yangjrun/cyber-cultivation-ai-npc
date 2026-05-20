@@ -1,14 +1,15 @@
 import type { NpcIntent, NpcState, NpcStateDelta } from "./npc.js";
+import type { PlayerState } from "./player.js";
 
 export type ChatRequestBody = {
   playerInput: string;
   npcId: string;
-  sessionId?: string;
+  sessionId: string;
 };
 
 export type ResetRequestBody = {
   npcId: string;
-  sessionId?: string;
+  sessionId: string;
 };
 
 export type ValidatedNpcResponse = {
@@ -26,6 +27,7 @@ export type ChatResponseBody = {
   state: NpcState;
   memoryAdded: string;
   actionResult: string;
+  player: PlayerState;
 };
 
 export type PromptContext = {

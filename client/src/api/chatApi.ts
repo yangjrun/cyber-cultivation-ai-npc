@@ -1,3 +1,5 @@
+import { defaultPlayer, normalizePlayer, type PlayerState } from "./sessionApi";
+
 export type NpcState = {
   trust: number;
   fear: number;
@@ -17,12 +19,14 @@ export type ChatResponse = {
   state: NpcState | null;
   memoryAdded: string;
   actionResult: string;
+  player: PlayerState;
 };
 
 const DEFAULT_DIALOGUE = "……丹炉的蓝火沉默了一瞬。";
+const CHAT_TIMEOUT_MS = 15000;
 
 export async function sendChat(playerInput: string, npcId = "baili", sessionId?: string): Promise<ChatResponse> {
-  const res = await fetch("/api/chat", {
+  const raw = await fetchJsonWithRetry("/api/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -34,16 +38,11 @@ export async function sendChat(playerInput: string, npcId = "baili", sessionId?:
     })
   });
 
-  if (!res.ok) {
-    throw new Error("chat request failed");
-  }
-
-  const raw = (await res.json()) as unknown;
   return normalizeChatResponse(raw);
 }
 
 export async function resetChat(npcId = "baili", sessionId?: string): Promise<void> {
-  const res = await fetch("/api/chat/reset", {
+  await fetchJsonWithRetry("/api/chat/reset", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -53,10 +52,6 @@ export async function resetChat(npcId = "baili", sessionId?: string): Promise<vo
       ...(sessionId ? { sessionId } : {})
     })
   });
-
-  if (!res.ok) {
-    throw new Error("reset request failed");
-  }
 }
 
 export function normalizeChatResponse(raw: unknown): ChatResponse {
@@ -68,8 +63,66 @@ export function normalizeChatResponse(raw: unknown): ChatResponse {
     intent: normalizeIntent(record.intent),
     state: normalizeState(record.state),
     memoryAdded: normalizeString(record.memoryAdded),
-    actionResult: normalizeString(record.actionResult)
+    actionResult: normalizeString(record.actionResult),
+    player: normalizePlayer(record.player, defaultPlayer.sessionId, defaultPlayer.id)
   };
+}
+
+async function fetchJsonWithRetry(url: string, init: RequestInit): Promise<unknown> {
+  const maxAttempts = 2;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchJsonWithTimeout(url, init);
+    } catch (error) {
+      lastError = error;
+
+      if (!shouldRetry(error) || attempt === maxAttempts) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("request failed");
+}
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit): Promise<unknown> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      throw new HttpError(res.status);
+    }
+
+    if (res.status === 204) {
+      return {};
+    }
+
+    return await res.json() as unknown;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function shouldRetry(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    return [502, 503, 504].includes(error.status);
+  }
+
+  return true;
+}
+
+class HttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`request failed with status ${status}`);
+  }
 }
 
 function normalizeString(value: unknown): string {
