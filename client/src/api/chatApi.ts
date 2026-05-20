@@ -25,7 +25,7 @@ export type ChatResponse = {
 
 const DEFAULT_DIALOGUE = "……丹炉的蓝火沉默了一瞬。";
 
-export async function sendChat(playerInput: string, npcId = "baili", sessionId?: string): Promise<ChatResponse> {
+export async function sendChat(playerInput: string, npcId: string, sessionId?: string): Promise<ChatResponse> {
   const raw = await fetchJsonWithRetry("/api/chat", {
     method: "POST",
     headers: {
@@ -41,7 +41,7 @@ export async function sendChat(playerInput: string, npcId = "baili", sessionId?:
   return normalizeChatResponse(raw);
 }
 
-export async function resetChat(npcId = "baili", sessionId?: string): Promise<void> {
+export async function resetChat(npcId: string, sessionId?: string): Promise<void> {
   await fetchJsonWithRetry("/api/chat/reset", {
     method: "POST",
     headers: {

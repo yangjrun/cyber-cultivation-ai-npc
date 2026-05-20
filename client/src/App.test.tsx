@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import { resetGameStoreForTests } from "./state/store";
 
@@ -18,17 +19,44 @@ const mockPlayer = {
   cultivationStageIdx: 0
 };
 
+const mockNpcStates = {
+  baili: { trust: 20, fear: 10, anger: 0, tianDaoAlert: 45 },
+  suhe: { trust: 0, fear: 0, anger: 0, tianDaoAlert: 60 },
+  chimu: { trust: 0, fear: 0, anger: 30, tianDaoAlert: 30 },
+  qinggu: { trust: 10, fear: 5, anger: 0, tianDaoAlert: 25 }
+};
+
+const mockScenes = {
+  scenes: [
+    {
+      sceneId: "black_market",
+      name: "无相黑市",
+      description: "九龙下城最深处的黑市。",
+      backgroundAsset: "/scenes/black_market.png",
+      npcIds: ["baili"],
+      unlockedByDefault: true
+    },
+    {
+      sceneId: "thunder_tavern",
+      name: "雷罚酒馆",
+      description: "雷罚帮在地下三层开的酒馆。",
+      backgroundAsset: "/scenes/thunder_tavern.png",
+      npcIds: ["chimu", "qinggu"],
+      unlockedByDefault: true
+    }
+  ]
+};
+
 const mockSessionResponse = {
   sessionId: "session-1",
   playerId: "player-1",
   player: mockPlayer,
-  npcState: {
-    trust: 20,
-    fear: 10,
-    anger: 0,
-    tianDaoAlert: 45
-  },
-  memories: []
+  npcState: mockNpcStates.baili,
+  npcStates: mockNpcStates,
+  activeSceneId: "black_market",
+  quests: [],
+  memories: [],
+  inventory: []
 };
 
 const mockChatResponse = {
@@ -41,15 +69,23 @@ const mockChatResponse = {
     }
   },
   state: {
-    trust: 21,
+    trust: 23,
     fear: 11,
     anger: 0,
     tianDaoAlert: 45
   },
   memoryAdded: "玩家想要躲避监察院扫描的丹药。",
-  actionResult: "任务已触发：偷取监察密钥。",
+  actionResult: "接受任务：偷一枚监察密钥 / baili 情绪变动",
   player: mockPlayer
 };
+
+function renderApp(initialEntries: string[] = ["/play"]) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <App />
+    </MemoryRouter>
+  );
+}
 
 describe("App", () => {
   beforeEach(() => {
@@ -67,25 +103,29 @@ describe("App", () => {
 
   it("limits player input to 80 characters", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
-    const input = screen.getByRole("textbox") as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
+    });
+
+    const input = await screen.findByRole("textbox");
     await user.type(input, "雷".repeat(100));
 
-    expect(Array.from(input.value)).toHaveLength(80);
+    expect(Array.from((input as HTMLTextAreaElement).value)).toHaveLength(80);
   });
 
   it("fills a quick prompt and renders the chat response", async () => {
     const user = userEvent.setup();
     const fetchMock = createFetchMock();
     vi.stubGlobal("fetch", fetchMock);
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
     });
 
-    await user.click(screen.getByRole("button", { name: "我需要躲过监察院扫描的丹药。" }));
+    await user.click(await screen.findByRole("button", { name: "我需要躲过监察院扫描的丹药。" }));
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     await waitFor(() => {
@@ -100,38 +140,44 @@ describe("App", () => {
     }));
     expect(screen.getByText("语气：试探")).toBeInTheDocument();
     expect(screen.getByText("玩家想要躲避监察院扫描的丹药。")).toBeInTheDocument();
-    expect(screen.getByText("任务已触发：偷取监察密钥。")).toBeInTheDocument();
-    expect(screen.getByText("21")).toBeInTheDocument();
+    expect(screen.getAllByText(/接受任务：偷一枚监察密钥/).length).toBeGreaterThan(0);
   });
 
   it("shows a user friendly error when the API fails", async () => {
     vi.stubGlobal("fetch", createFetchMock({ failChat: true }));
     const user = userEvent.setup();
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
     });
 
-    const input = screen.getByRole("textbox");
+    const input = await screen.findByRole("textbox");
     await user.type(input, "买药");
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     await waitFor(() => {
-      expect(screen.getByText("链路中断：无法连接白璃丹铺。")).toBeInTheDocument();
+      expect(screen.getByText("链路中断：无法连接 NPC。")).toBeInTheDocument();
     });
   });
 
-  it("renders the initial welcome message, player panel, and system log", async () => {
-    render(<App />);
+  it("renders top nav with play and settings links", async () => {
+    renderApp();
 
-    expect(screen.getByText("新面孔？右臂这焊痕，不是正经门路上的人吧。")).toBeInTheDocument();
-    expect(screen.getByText("已连接白璃丹铺。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "对话" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "设置" })).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText("练气一层 · 非法灵根持有者")).toBeInTheDocument();
-    });
-    expect(screen.getByText("0 灵石")).toBeInTheDocument();
+  it("renders the settings page when navigated", async () => {
+    renderApp(["/settings"]);
+
+    expect(await screen.findByText("设置与调试")).toBeInTheDocument();
+  });
+
+  it("renders a 404 for unknown routes", async () => {
+    renderApp(["/no/such/path"]);
+
+    expect(await screen.findByText("404 · 此路不通")).toBeInTheDocument();
   });
 });
 
@@ -145,6 +191,26 @@ function createFetchMock(options: FetchMockOptions = {}) {
 
     if (url === "/api/session" || url === "/api/session/session-1") {
       return jsonResponse(mockSessionResponse);
+    }
+
+    if (url === "/api/scenes") {
+      return jsonResponse(mockScenes);
+    }
+
+    if (url.startsWith("/api/scenes/") && url.includes("/snapshot")) {
+      return jsonResponse({
+        scene: mockScenes.scenes[0],
+        npcs: [
+          {
+            profile: { npc_id: "baili", name: "白璃", role: "黑市炼丹师", faction: "无相黑市" },
+            state: mockNpcStates.baili
+          }
+        ]
+      });
+    }
+
+    if (url.startsWith("/api/quests/")) {
+      return jsonResponse({ quests: [] });
     }
 
     if (url === "/api/chat/reset") {

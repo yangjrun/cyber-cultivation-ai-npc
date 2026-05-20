@@ -1,9 +1,9 @@
-import { useGameStore } from "../state/store";
+import { getActiveNpcState, useGameStore } from "../state/store";
 import { StatBar } from "./StatBar";
 
 export function CultivationPanel() {
   const player = useGameStore((state) => state.player);
-  const npcState = useGameStore((state) => state.npcState);
+  const npcState = useGameStore(getActiveNpcState);
   const cultivationLoading = useGameStore((state) => state.cultivationLoading);
   const breakthroughLoading = useGameStore((state) => state.breakthroughLoading);
   const lastCultivationResult = useGameStore((state) => state.lastCultivationResult);

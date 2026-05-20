@@ -3,19 +3,28 @@ import { refineAlchemy, type MaterialSelection } from "../api/alchemyApi";
 import { resetChat, sendChat, type NpcState } from "../api/chatApi";
 import { breakthrough as requestBreakthrough, cultivate as requestCultivate } from "../api/cultivationApi";
 import { useInventoryItem } from "../api/inventoryApi";
-import { createSession, defaultPlayer, getSession, type InventoryItem, type PlayerState } from "../api/sessionApi";
+import { listQuests, type QuestProgress } from "../api/questApi";
+import { listScenes, switchScene as requestSwitchScene, type SceneDefinition } from "../api/sceneApi";
+import { createSession, defaultPlayer, getSession, type InventoryItem, type NpcStateSnapshot, type PlayerState } from "../api/sessionApi";
 import type { ChatMessage } from "../components/DialoguePanel";
 import type { SystemLog } from "../components/SystemLogPanel";
 
 const STORAGE_KEY = "cyber-cultivation.sessionId";
-const NPC_ID = "baili";
-const NPC_NAME = "白璃";
+const DEFAULT_NPC_ID = "baili";
+const DEFAULT_SCENE_ID = "black_market";
 const PLAYER_NAME = "陆玄";
 const MAX_LOGS = 5;
 const MAX_MEMORIES = 5;
-const ERROR_MESSAGE = "链路中断：无法连接白璃丹铺。";
+const ERROR_MESSAGE = "链路中断：无法连接 NPC。";
 
 export const MAX_INPUT = 80;
+
+export const NPC_NAMES: Record<string, string> = {
+  baili: "白璃",
+  suhe: "苏鹤",
+  chimu: "赤目",
+  qinggu: "青姑"
+};
 
 export const initialNpcState: NpcState = {
   trust: 20,
@@ -30,15 +39,21 @@ type GameState = {
   player: PlayerState;
   inventory: InventoryItem[];
   sessionLoading: boolean;
-  messages: ChatMessage[];
+  activeSceneId: string;
+  activeNpcId: string;
+  scenes: SceneDefinition[];
+  scenesLoading: boolean;
+  npcStates: Record<string, NpcStateSnapshot>;
+  quests: QuestProgress[];
+  questsLoading: boolean;
+  messagesByNpc: Record<string, ChatMessage[]>;
+  memoriesByNpc: Record<string, string[]>;
   input: string;
   loading: boolean;
   cultivationLoading: boolean;
   breakthroughLoading: boolean;
   alchemyLoading: boolean;
   error: string;
-  npcState: NpcState;
-  memories: string[];
   lastActionResult: string;
   lastIntent: string;
   lastCultivationResult: string;
@@ -54,6 +69,9 @@ type GameActions = {
   selectQuickPrompt: (value: string) => void;
   sendMessage: () => Promise<void>;
   resetDialogue: () => Promise<void>;
+  switchScene: (sceneId: string) => Promise<void>;
+  selectNpc: (npcId: string) => void;
+  refreshQuests: () => Promise<void>;
   cultivate: (duration: number) => Promise<void>;
   breakthrough: () => Promise<void>;
   refineAlchemy: (recipeId: string, materials: MaterialSelection[], fireLevel: number) => Promise<void>;
@@ -76,16 +94,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ sessionLoading: true, error: "" });
 
     try {
-      const storedSessionId = readStoredSessionId();
+      const [storedSessionId, scenes] = await Promise.all([
+        Promise.resolve(readStoredSessionId()),
+        listScenes().catch(() => [])
+      ]);
       const session = storedSessionId ? await restoreOrCreateSession(storedSessionId) : await createSession();
       writeStoredSessionId(session.sessionId);
+
+      const activeSceneId = session.activeSceneId || DEFAULT_SCENE_ID;
+      const sceneNpcIds = scenes.find((s) => s.sceneId === activeSceneId)?.npcIds ?? [];
+      const activeNpcId = sceneNpcIds[0] ?? DEFAULT_NPC_ID;
+      const memoriesForActive = session.memories.slice(-MAX_MEMORIES);
+
       set({
         sessionId: session.sessionId,
         playerId: session.playerId,
         player: session.player,
         inventory: session.inventory,
-        npcState: session.npcState ?? initialNpcState,
-        memories: session.memories.slice(-MAX_MEMORIES),
+        scenes,
+        activeSceneId,
+        activeNpcId,
+        npcStates: session.npcStates,
+        quests: session.quests,
+        memoriesByNpc: memoriesForActive.length > 0 ? { [activeNpcId]: memoriesForActive } : {},
         sessionLoading: false
       });
       get().appendLog("玩家存档已载入。");
@@ -118,8 +149,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     const activeSessionId = get().sessionId;
+    const activeNpcId = get().activeNpcId;
 
-    if (!activeSessionId) {
+    if (!activeSessionId || !activeNpcId) {
       return;
     }
 
@@ -132,7 +164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     };
 
     set((state) => ({
-      messages: [...state.messages, playerMessage],
+      messagesByNpc: appendMessage(state.messagesByNpc, activeNpcId, playerMessage),
       input: "",
       loading: true,
       error: ""
@@ -140,27 +172,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().appendLog("玩家发送灵识讯息。");
 
     try {
-      const response = await sendChat(trimmed, NPC_ID, activeSessionId);
+      const response = await sendChat(trimmed, activeNpcId, activeSessionId);
+      const npcName = getNpcName(activeNpcId);
       const npcMessage: ChatMessage = {
         id: uid(),
         speaker: "npc",
-        name: NPC_NAME,
+        name: npcName,
         text: response.dialogue,
         tone: response.tone || undefined,
         intentType: response.intent.type,
         timestamp: nowTime()
       };
 
-      set((state) => ({
-        messages: [...state.messages, npcMessage],
-        npcState: response.state ?? state.npcState,
-        player: response.player,
-        lastIntent: response.intent.type,
-        lastActionResult: response.actionResult,
-        memories: response.memoryAdded ? [...state.memories, response.memoryAdded].slice(-MAX_MEMORIES) : state.memories
-      }));
+      set((state) => {
+        const nextNpcStates = response.state
+          ? { ...state.npcStates, [activeNpcId]: response.state }
+          : state.npcStates;
+        const nextMemories = response.memoryAdded
+          ? appendMemory(state.memoriesByNpc, activeNpcId, response.memoryAdded)
+          : state.memoriesByNpc;
 
-      get().appendLog(`收到 NPC 回复：tone=${response.tone || "未知"}。`);
+        return {
+          messagesByNpc: appendMessage(state.messagesByNpc, activeNpcId, npcMessage),
+          npcStates: nextNpcStates,
+          player: response.player,
+          lastIntent: response.intent.type,
+          lastActionResult: response.actionResult,
+          memoriesByNpc: nextMemories
+        };
+      });
+
+      get().appendLog(`收到 ${npcName} 回复：tone=${response.tone || "未知"}。`);
       get().appendLog(`intent=${response.intent.type} 已校验。`);
 
       if (response.memoryAdded) {
@@ -169,31 +211,86 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       if (response.actionResult) {
         get().appendLog(`动作触发：${response.actionResult}`);
+        void get().refreshQuests();
       }
     } catch {
       set({ error: ERROR_MESSAGE });
-      get().appendLog("链路异常：未能收到白璃回复。");
+      get().appendLog("链路异常：未能收到 NPC 回复。");
     } finally {
       set({ loading: false });
     }
   },
 
   resetDialogue: async () => {
-    set({
-      messages: [createWelcomeMessage()],
+    const activeNpcId = get().activeNpcId;
+
+    set((state) => ({
+      messagesByNpc: { ...state.messagesByNpc, [activeNpcId]: [] },
+      memoriesByNpc: { ...state.memoriesByNpc, [activeNpcId]: [] },
       input: "",
       error: "",
-      npcState: initialNpcState,
-      memories: [],
+      npcStates: { ...state.npcStates, [activeNpcId]: initialNpcState },
       lastActionResult: "",
       lastIntent: "none",
-      systemLogs: [{ id: uid(), time: nowTime(), text: "演示状态已重置。" }]
-    });
+      systemLogs: [{ id: uid(), time: nowTime(), text: `${getNpcName(activeNpcId)} 状态已重置。` }]
+    }));
 
     try {
-      await resetChat(NPC_ID, get().sessionId || undefined);
+      await resetChat(activeNpcId, get().sessionId || undefined);
     } catch {
       get().appendLog("后端重置失败，仅清空本地状态。");
+    }
+  },
+
+  switchScene: async (sceneId: string) => {
+    const sessionId = get().sessionId;
+
+    if (!sessionId || get().activeSceneId === sceneId) {
+      return;
+    }
+
+    const scene = get().scenes.find((s) => s.sceneId === sceneId);
+
+    if (!scene) {
+      return;
+    }
+
+    try {
+      await requestSwitchScene(sessionId, sceneId);
+    } catch {
+      get().appendLog("场景切换失败。");
+      return;
+    }
+
+    const fallbackNpcId = scene.npcIds[0] ?? get().activeNpcId;
+    const nextNpcId = scene.npcIds.includes(get().activeNpcId) ? get().activeNpcId : fallbackNpcId;
+
+    set({ activeSceneId: sceneId, activeNpcId: nextNpcId });
+    get().appendLog(`场景切换至：${scene.name}`);
+  },
+
+  selectNpc: (npcId: string) => {
+    if (npcId !== get().activeNpcId) {
+      set({ activeNpcId: npcId, input: "" });
+      get().appendLog(`目标切换至：${getNpcName(npcId)}`);
+    }
+  },
+
+  refreshQuests: async () => {
+    const sessionId = get().sessionId;
+
+    if (!sessionId || get().questsLoading) {
+      return;
+    }
+
+    set({ questsLoading: true });
+
+    try {
+      const quests = await listQuests(sessionId);
+      set({ quests, questsLoading: false });
+    } catch {
+      set({ questsLoading: false });
+      get().appendLog("任务列表刷新失败。");
     }
   },
 
@@ -229,11 +326,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     try {
       const response = await requestBreakthrough(sessionId);
-      set({
+      const activeNpcId = get().activeNpcId;
+
+      set((state) => ({
         player: response.player,
-        npcState: response.npcState ?? get().npcState,
+        npcStates: response.npcState
+          ? { ...state.npcStates, [activeNpcId]: response.npcState }
+          : state.npcStates,
         lastBreakthroughResult: response.message
-      });
+      }));
       get().appendLog(`突破结果：${response.message}`);
     } catch {
       set({ error: "突破链路中断：请稍后再试。" });
@@ -275,12 +376,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     try {
       const response = await useInventoryItem(sessionId, itemId);
-      set({
+      const activeNpcId = get().activeNpcId;
+
+      set((state) => ({
         player: response.player,
-        npcState: response.npcState ?? get().npcState,
+        npcStates: response.npcState
+          ? { ...state.npcStates, [activeNpcId]: response.npcState }
+          : state.npcStates,
         inventory: response.inventory,
         lastAlchemyResult: response.message
-      });
+      }));
       get().appendLog(`服用物品：${response.message}`);
     } catch {
       set({ error: "物品使用失败。" });
@@ -310,6 +415,25 @@ export function resetGameStoreForTests(): void {
   useGameStore.setState(createInitialState());
 }
 
+export function getNpcName(npcId: string): string {
+  return NPC_NAMES[npcId] ?? npcId;
+}
+
+const EMPTY_MESSAGES: ChatMessage[] = [];
+const EMPTY_MEMORIES: string[] = [];
+
+export function getActiveMessages(state: GameStore): ChatMessage[] {
+  return state.messagesByNpc[state.activeNpcId] ?? EMPTY_MESSAGES;
+}
+
+export function getActiveMemories(state: GameStore): string[] {
+  return state.memoriesByNpc[state.activeNpcId] ?? EMPTY_MEMORIES;
+}
+
+export function getActiveNpcState(state: GameStore): NpcState {
+  return state.npcStates[state.activeNpcId] ?? initialNpcState;
+}
+
 function createInitialState(): GameState {
   return {
     sessionId: "",
@@ -317,15 +441,21 @@ function createInitialState(): GameState {
     player: defaultPlayer,
     inventory: [],
     sessionLoading: false,
-    messages: [createWelcomeMessage()],
+    activeSceneId: DEFAULT_SCENE_ID,
+    activeNpcId: DEFAULT_NPC_ID,
+    scenes: [],
+    scenesLoading: false,
+    npcStates: {},
+    quests: [],
+    questsLoading: false,
+    messagesByNpc: {},
+    memoriesByNpc: {},
     input: "",
     loading: false,
     cultivationLoading: false,
     breakthroughLoading: false,
     alchemyLoading: false,
     error: "",
-    npcState: initialNpcState,
-    memories: [],
     lastActionResult: "",
     lastIntent: "none",
     lastCultivationResult: "",
@@ -350,6 +480,16 @@ async function restoreOrCreateSession(sessionId: string) {
   } catch {
     return await createSession();
   }
+}
+
+function appendMessage(map: Record<string, ChatMessage[]>, npcId: string, message: ChatMessage): Record<string, ChatMessage[]> {
+  const current = map[npcId] ?? [];
+  return { ...map, [npcId]: [...current, message] };
+}
+
+function appendMemory(map: Record<string, string[]>, npcId: string, memory: string): Record<string, string[]> {
+  const current = map[npcId] ?? [];
+  return { ...map, [npcId]: [...current, memory].slice(-MAX_MEMORIES) };
 }
 
 function readStoredSessionId(): string {
@@ -387,22 +527,10 @@ function clampInput(value: string): string {
   return Array.from(value).slice(0, MAX_INPUT).join("");
 }
 
-function createWelcomeMessage(): ChatMessage {
-  return {
-    id: "welcome",
-    speaker: "npc",
-    name: NPC_NAME,
-    text: "新面孔？右臂这焊痕，不是正经门路上的人吧。",
-    tone: "冷淡",
-    intentType: "none",
-    timestamp: nowTime()
-  };
-}
-
 function createInitialLog(): SystemLog {
   return {
     id: "init",
     time: nowTime(),
-    text: "已连接白璃丹铺。"
+    text: "已连接对话核心。"
   };
 }

@@ -1,4 +1,5 @@
 import { fetchJsonWithRetry } from "./apiClient";
+import { normalizeQuestList, type QuestProgress } from "./questApi";
 
 export type RootElement = "metal" | "wood" | "water" | "fire" | "earth";
 
@@ -56,6 +57,9 @@ export type SessionResponse = {
   npcState: NpcStateSnapshot | null;
   memories: string[];
   inventory: InventoryItem[];
+  activeSceneId: string;
+  npcStates: Record<string, NpcStateSnapshot>;
+  quests: QuestProgress[];
 };
 
 export const defaultRoots: ElementRoots = {
@@ -107,8 +111,29 @@ export function normalizeSessionResponse(raw: unknown): SessionResponse {
     player,
     npcState: normalizeNpcState(record.npcState),
     memories: normalizeStringArray(record.memories, []),
-    inventory: normalizeInventory(record.inventory)
+    inventory: normalizeInventory(record.inventory),
+    activeSceneId: normalizeString(record.activeSceneId) || "black_market",
+    npcStates: normalizeNpcStates(record.npcStates),
+    quests: normalizeQuestList({ quests: record.quests })
   };
+}
+
+function normalizeNpcStates(raw: unknown): Record<string, NpcStateSnapshot> {
+  if (!isRecord(raw)) {
+    return {};
+  }
+
+  const result: Record<string, NpcStateSnapshot> = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    const state = normalizeNpcState(value);
+
+    if (state) {
+      result[key] = state;
+    }
+  }
+
+  return result;
 }
 
 export function normalizePlayer(raw: unknown, fallbackSessionId = "", fallbackPlayerId = ""): PlayerState {
