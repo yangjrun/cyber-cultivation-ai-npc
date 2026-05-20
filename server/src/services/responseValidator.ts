@@ -1,3 +1,5 @@
+import { getQuestDefinition } from "../data/quests.js";
+import { techniques } from "../data/techniques.js";
 import { allowedIntents } from "./gameState.js";
 import type { IntentType, NpcIntent, NpcStateDelta } from "../types/npc.js";
 import type { ValidatedNpcResponse } from "../types/chat.js";
@@ -132,9 +134,10 @@ function normalizeIntent(value: unknown): NpcIntent {
 
   if (type === "give_quest") {
     const params = isRecord(value.params) ? value.params : {};
+    const questId = typeof params.quest_id === "string" ? params.quest_id : null;
 
-    if (params.quest_id === "steal_inspector_key") {
-      return { type, params: { quest_id: "steal_inspector_key" } };
+    if (questId && getQuestDefinition(questId)) {
+      return { type, params: { quest_id: questId } };
     }
 
     return { type: "none", params: {} };
@@ -142,9 +145,10 @@ function normalizeIntent(value: unknown): NpcIntent {
 
   if (type === "teach_technique") {
     const params = isRecord(value.params) ? value.params : {};
+    const techniqueId = typeof params.technique_id === "string" ? params.technique_id : null;
 
-    if (params.technique_id === "basic_breathing") {
-      return { type, params: { technique_id: "basic_breathing" } };
+    if (techniqueId && techniques[techniqueId]) {
+      return { type, params: { technique_id: techniqueId } };
     }
 
     return { type: "none", params: {} };

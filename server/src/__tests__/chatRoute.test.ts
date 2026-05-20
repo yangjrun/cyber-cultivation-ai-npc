@@ -48,9 +48,9 @@ describe("POST /api/chat", () => {
 
     expect(response.body.dialogue).toBe("能做，但你得先偷一枚监察密钥。");
     expect(response.body.intent).toEqual({ type: "give_quest", params: { quest_id: "steal_inspector_key" } });
-    expect(response.body.state).toEqual({ trust: 21, fear: 11, anger: 0, tianDaoAlert: 45 });
+    expect(response.body.state).toEqual({ trust: 23, fear: 11, anger: 0, tianDaoAlert: 45 });
     expect(response.body.memoryAdded).toBe("玩家想要躲避监察院扫描的丹药。");
-    expect(response.body.actionResult).toBe("任务已触发：偷取监察密钥。");
+    expect(response.body.actionResult).toContain("接受任务：偷一枚监察密钥");
     expect(response.body.player).toMatchObject({ name: "陆玄", qiCurrent: 0, qiCap: 100, spiritStones: 0 });
     expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(["玩家想要躲避监察院扫描的丹药。"]);
   });
@@ -130,6 +130,47 @@ describe("POST /api/chat", () => {
         .expect(200);
       expect(response.body.dialogue).toEqual(expect.any(String));
     }
+  });
+
+  it("walks a quest from give → in_progress → completed (qinggu→suhe verify path)", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    const accept = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "我怀疑苏鹤是卧底", npcId: "qinggu", sessionId })
+      .expect(200);
+
+    expect(accept.body.intent).toEqual({
+      type: "give_quest",
+      params: { quest_id: "verify_suhe_identity" }
+    });
+    expect(accept.body.actionResult).toContain("接受任务");
+
+    let quests = await request(app).get(`/api/quests/${sessionId}`).expect(200);
+    expect(quests.body.quests[0].status).toBe("accepted");
+
+    await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "你是不是监察院的卧底", npcId: "suhe", sessionId })
+      .expect(200);
+
+    quests = await request(app).get(`/api/quests/${sessionId}`).expect(200);
+    expect(quests.body.quests[0].status).toBe("in_progress");
+
+    for (let i = 0; i < 20; i += 1) {
+      await request(app)
+        .post("/api/chat")
+        .send({ playerInput: "你是不是监察院的卧底", npcId: "suhe", sessionId })
+        .expect(200);
+
+      quests = await request(app).get(`/api/quests/${sessionId}`).expect(200);
+      if (quests.body.quests[0].status === "completed") {
+        break;
+      }
+    }
+
+    expect(quests.body.quests[0].status).toBe("completed");
   });
 });
 

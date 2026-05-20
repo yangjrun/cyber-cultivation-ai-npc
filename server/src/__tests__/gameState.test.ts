@@ -21,8 +21,8 @@ describe("gameState", () => {
 
   it("executes allowed intents and returns action results", () => {
     expect(executeIntent("baili", { type: "none", params: {} })).toBe("");
-    expect(executeIntent("baili", { type: "offer_trade", params: {} })).toBe("已打开黑市丹药交易。");
-    expect(executeIntent("baili", { type: "give_quest", params: { quest_id: "steal_inspector_key" } })).toBe("任务已触发：偷取监察密钥。");
+    expect(executeIntent("baili", { type: "offer_trade", params: {} })).toBe("白璃打开了对应的交易。");
+    expect(executeIntent("baili", { type: "give_quest", params: { quest_id: "steal_inspector_key" } })).toBe("");
     expect(executeIntent("baili", { type: "refuse_service", params: {} })).toBe("白璃拒绝继续交易。");
   });
 

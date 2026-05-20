@@ -71,8 +71,10 @@ export function applyStateDelta(npcId: string, delta: NpcStateDelta): NpcState {
 }
 
 export function executeIntent(npcId: string, intent: NpcIntent): string {
+  const name = getNpcDisplayName(npcId);
+
   if (intent.type === "offer_trade") {
-    return "已打开黑市丹药交易。";
+    return `${name}打开了对应的交易。`;
   }
 
   if (intent.type === "complete_trade") {
@@ -80,20 +82,16 @@ export function executeIntent(npcId: string, intent: NpcIntent): string {
   }
 
   if (intent.type === "teach_technique") {
-    return "白璃提到一门吐纳法，但真正领悟还得靠修炼系统。";
-  }
-
-  if (intent.type === "give_quest" && intent.params.quest_id === "steal_inspector_key") {
-    return "任务已触发：偷取监察密钥。";
+    return `${name}提到一门吐纳法，但真正领悟还得靠修炼系统。`;
   }
 
   if (intent.type === "report_player") {
     applyStateDelta(npcId, { trust: 0, fear: 0, anger: 0, tianDaoAlert: 10 });
-    return "白璃向监察院泄露了你的踪迹，天道警戒上升。";
+    return `${name}向监察院泄露了你的踪迹，天道警戒上升。`;
   }
 
   if (intent.type === "refuse_service") {
-    return "白璃拒绝继续交易。";
+    return `${name}拒绝继续交易。`;
   }
 
   return "";
@@ -173,6 +171,11 @@ function cloneProfile(profile: NpcProfile): NpcProfile {
     sceneIds: [...profile.sceneIds],
     initialState: { ...profile.initialState }
   };
+}
+
+function getNpcDisplayName(npcId: string): string {
+  const baseNpcId = getBaseNpcId(npcId);
+  return npcProfiles[baseNpcId]?.name ?? "NPC";
 }
 
 function clamp(value: number, min: number, max: number): number {

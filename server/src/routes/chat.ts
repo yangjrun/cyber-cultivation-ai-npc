@@ -3,8 +3,11 @@ import { applyStateDelta, executeIntent, getNpcProfile, getNpcState, resetNpcSta
 import { generateNpcResponse } from "../services/llmClient.js";
 import { addMemory, clearMemories, getRecentMemories } from "../services/memoryStore.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
-import { buildPrompt } from "../services/promptBuilder.js";
+import { buildSystemPrompt, buildUserTurn } from "../services/promptBuilder.js";
+import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "../services/questEngine.js";
 import { validateLlmResponse } from "../services/responseValidator.js";
+import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
+import { scopedNpcId as makeScopedNpcId } from "../services/scopedNpcId.js";
 import { validateChatRequest, validateResetRequest } from "../schemas/chat.js";
 import type { ChatResponseBody } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
@@ -26,7 +29,7 @@ chatRouter.post("/reset", (req, res, next) => {
       return;
     }
 
-    const scopedNpcId = createScopedNpcId(npcId, sessionId);
+    const scopedNpcId = makeScopedNpcId(sessionId, npcId);
     const state = resetNpcState(scopedNpcId);
     clearMemories(scopedNpcId);
 
@@ -52,15 +55,36 @@ chatRouter.post("/", async (req, res, next) => {
     }
 
     const player = resolvePlayer(sessionId);
-    const scopedNpcId = createScopedNpcId(npcId, sessionId);
+    const scopedNpcId = makeScopedNpcId(sessionId, npcId);
     const memories = getRecentMemories(scopedNpcId, 5);
-    const prompt = buildPrompt({ npcId, scopedNpcId, playerInput, memories, player });
-    const rawResponse = await generateNpcResponse(prompt, playerInput);
+    const activeSceneId = getActiveSceneId(sessionId);
+    const sceneSnapshot = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
+    const activeQuests = getRelevantQuests(sessionId, npcId);
+
+    const systemPrompt = buildSystemPrompt({ npcId });
+    const userTurn = buildUserTurn({
+      scopedNpcId,
+      npcId,
+      playerInput,
+      memories,
+      player,
+      scene: sceneSnapshot,
+      activeQuests
+    });
+    const prompt = `${systemPrompt}\n\n${userTurn}`;
+
+    const rawResponse = await generateNpcResponse(prompt, playerInput, npcId);
     const npcResponse = validateLlmResponse(rawResponse);
 
     applyStateDelta(scopedNpcId, npcResponse.state_delta);
-    const actionResult = executeIntent(scopedNpcId, npcResponse.intent);
-    addMemory(scopedNpcId, npcResponse.memory);
+    const baseActionResult = executeIntent(scopedNpcId, npcResponse.intent);
+    const questResult = evaluateQuestIntent(sessionId, scopedNpcId, npcResponse.intent);
+
+    const actionResult = [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / ");
+
+    if (npcResponse.memory) {
+      addMemory(scopedNpcId, npcResponse.memory);
+    }
 
     const responseBody: ChatResponseBody = {
       dialogue: npcResponse.dialogue,
@@ -69,7 +93,7 @@ chatRouter.post("/", async (req, res, next) => {
       state: getNpcState(scopedNpcId),
       memoryAdded: npcResponse.memory,
       actionResult,
-      player
+      player: resolvePlayer(sessionId)
     };
 
     res.json(responseBody);
@@ -105,8 +129,4 @@ function isKnownSession(sessionId: string, res: Response): boolean {
 
   res.status(404).json({ error: "Session 不存在。" });
   return false;
-}
-
-function createScopedNpcId(npcId: string, sessionId: string): string {
-  return `${sessionId}::${npcId}`;
 }
