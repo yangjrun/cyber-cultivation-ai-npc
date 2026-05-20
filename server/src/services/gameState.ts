@@ -2,7 +2,7 @@ import { getDb } from "../db/connection.js";
 import { sessionExists } from "./playerStore.js";
 import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta } from "../types/npc.js";
 
-export const allowedIntents = ["none", "offer_trade", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
+export const allowedIntents = ["none", "offer_trade", "complete_trade", "teach_technique", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
 
 export const npcProfiles: Record<string, NpcProfile> = {
   baili: {
@@ -84,6 +84,14 @@ export function applyStateDelta(npcId: string, delta: NpcStateDelta): NpcState {
 export function executeIntent(npcId: string, intent: NpcIntent): string {
   if (intent.type === "offer_trade") {
     return "已打开黑市丹药交易。";
+  }
+
+  if (intent.type === "complete_trade") {
+    return "交易已记录，具体物品以背包结算为准。";
+  }
+
+  if (intent.type === "teach_technique") {
+    return "白璃提到一门吐纳法，但真正领悟还得靠修炼系统。";
   }
 
   if (intent.type === "give_quest" && intent.params.quest_id === "steal_inspector_key") {

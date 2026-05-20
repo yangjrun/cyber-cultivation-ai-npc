@@ -3,7 +3,10 @@ import express, { type ErrorRequestHandler } from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRateLimit } from "./middleware/rateLimit.js";
+import { alchemyRouter } from "./routes/alchemy.js";
 import { chatRouter } from "./routes/chat.js";
+import { breakthroughRouter, cultivateRouter } from "./routes/cultivation.js";
+import { inventoryRouter } from "./routes/inventory.js";
 import { sessionRouter } from "./routes/session.js";
 
 export function createApp() {
@@ -12,6 +15,10 @@ export function createApp() {
   app.use(express.json({ limit: "16kb" }));
   app.use("/api/session", createRateLimit({ windowMs: 60_000, maxRequests: 30, message: "会话创建过于频繁，请稍后再试。" }), sessionRouter);
   app.use("/api/chat", createRateLimit({ windowMs: 60_000, maxRequests: 120, message: "请求过于频繁，请稍后再试。" }), chatRouter);
+  app.use("/api/cultivate", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "修炼请求过于频繁，请稍后再试。" }), cultivateRouter);
+  app.use("/api/breakthrough", createRateLimit({ windowMs: 60_000, maxRequests: 20, message: "突破请求过于频繁，请稍后再试。" }), breakthroughRouter);
+  app.use("/api/alchemy", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "炼丹请求过于频繁，请稍后再试。" }), alchemyRouter);
+  app.use("/api/inventory", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "背包请求过于频繁，请稍后再试。" }), inventoryRouter);
 
   if (process.env.NODE_ENV === "production") {
     const clientDist = path.join(getRepoRoot(), "client", "dist");

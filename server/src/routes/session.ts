@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { getNpcState } from "../services/gameState.js";
+import { getInventory } from "../services/inventoryStore.js";
 import { getRecentMemories } from "../services/memoryStore.js";
 import { createSession, getSession } from "../services/playerStore.js";
 import type { SessionSnapshot } from "../types/player.js";
@@ -47,6 +48,7 @@ function createSessionResponse(session: SessionSnapshot) {
   return {
     ...session,
     npcState: getNpcState(scopedNpcId),
-    memories: getRecentMemories(scopedNpcId, 5)
+    memories: getRecentMemories(scopedNpcId, 5),
+    inventory: getInventory(session.sessionId)
   };
 }

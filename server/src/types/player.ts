@@ -1,3 +1,7 @@
+export type RootElement = "metal" | "wood" | "water" | "fire" | "earth";
+
+export type ElementRoots = Record<RootElement, number>;
+
 export type PlayerProfile = {
   id: string;
   sessionId: string;
@@ -13,6 +17,11 @@ export type PlayerState = PlayerProfile & {
   qiCurrent: number;
   qiCap: number;
   cultivationStageIdx: number;
+  roots: ElementRoots;
+  activeTechniqueId: string;
+  breakthroughBonusUntil: string | null;
+  alertShieldUntil: string | null;
+  alertShieldStrength: number;
 };
 
 export type SessionSnapshot = {

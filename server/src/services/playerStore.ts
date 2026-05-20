@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { defaultRoots, getStageByIndex } from "../data/cultivationBalance.js";
 import { getDb } from "../db/connection.js";
-import type { PlayerState, SessionSnapshot } from "../types/player.js";
+import { initializeStarterInventory } from "./inventoryStore.js";
+import type { ElementRoots, PlayerState, RootElement, SessionSnapshot } from "../types/player.js";
 
 const defaultPlayer = {
   name: "陆玄",
@@ -11,7 +13,12 @@ const defaultPlayer = {
   spiritStones: 0,
   qiCurrent: 0,
   qiCap: 100,
-  cultivationStageIdx: 0
+  cultivationStageIdx: 0,
+  roots: defaultRoots,
+  activeTechniqueId: "basic_breathing",
+  breakthroughBonusUntil: null,
+  alertShieldUntil: null,
+  alertShieldStrength: 0
 } as const;
 
 type PlayerRow = {
@@ -26,7 +33,26 @@ type PlayerRow = {
   qi_current: number;
   qi_cap: number;
   cultivation_stage_idx: number;
+  roots: string;
+  active_technique_id: string;
+  breakthrough_bonus_until: string | null;
+  alert_shield_until: string | null;
+  alert_shield_strength: number;
 };
+
+export type PlayerPatch = Partial<Pick<
+  PlayerState,
+  "realm" |
+  "spiritStones" |
+  "qiCurrent" |
+  "qiCap" |
+  "cultivationStageIdx" |
+  "roots" |
+  "activeTechniqueId" |
+  "breakthroughBonusUntil" |
+  "alertShieldUntil" |
+  "alertShieldStrength"
+>>;
 
 export function createSession(): SessionSnapshot {
   const sessionId = randomUUID();
@@ -38,6 +64,7 @@ export function createSession(): SessionSnapshot {
     db.prepare("INSERT INTO sessions (id, created_at, updated_at) VALUES (?, ?, ?)")
       .run(sessionId, createdAt, createdAt);
     insertPlayer(sessionId, playerId, createdAt);
+    initializeStarterInventory(sessionId);
   })();
 
   const session = getSession(sessionId);
@@ -78,6 +105,7 @@ export function createPlayer(sessionId: string): PlayerState {
   const createdAt = nowIso();
   const playerId = randomUUID();
   insertPlayer(sessionId, playerId, createdAt);
+  initializeStarterInventory(sessionId);
 
   const player = getPlayer(sessionId);
 
@@ -92,7 +120,8 @@ export function getPlayer(sessionId: string): PlayerState | null {
   const row = getDb()
     .prepare(
       `SELECT id, session_id, name, realm, has_illegal_chip, visible_traits, recent_actions,
-        spirit_stones, qi_current, qi_cap, cultivation_stage_idx
+        spirit_stones, qi_current, qi_cap, cultivation_stage_idx, roots, active_technique_id,
+        breakthrough_bonus_until, alert_shield_until, alert_shield_strength
        FROM players
        WHERE session_id = ?`
     )
@@ -101,29 +130,52 @@ export function getPlayer(sessionId: string): PlayerState | null {
   return row ? mapPlayer(row) : null;
 }
 
-export function updatePlayer(sessionId: string, patch: Partial<Pick<PlayerState, "spiritStones" | "qiCurrent" | "qiCap" | "cultivationStageIdx">>): PlayerState {
+export function updatePlayer(sessionId: string, patch: PlayerPatch): PlayerState {
   const current = getPlayer(sessionId);
 
   if (!current) {
     throw new Error("Player not found");
   }
 
+  const nextStageIdx = clampInteger(patch.cultivationStageIdx ?? current.cultivationStageIdx, 0, Number.MAX_SAFE_INTEGER);
+  const stage = getStageByIndex(nextStageIdx);
+  const nextQiCap = clampInteger(patch.qiCap ?? current.qiCap, 1, Number.MAX_SAFE_INTEGER);
   const next: PlayerState = {
     ...current,
+    realm: patch.realm ?? stage.realm,
     spiritStones: clampInteger(patch.spiritStones ?? current.spiritStones, 0, Number.MAX_SAFE_INTEGER),
-    qiCurrent: clampInteger(patch.qiCurrent ?? current.qiCurrent, 0, Number.MAX_SAFE_INTEGER),
-    qiCap: clampInteger(patch.qiCap ?? current.qiCap, 1, Number.MAX_SAFE_INTEGER),
-    cultivationStageIdx: clampInteger(patch.cultivationStageIdx ?? current.cultivationStageIdx, 0, Number.MAX_SAFE_INTEGER)
+    qiCurrent: clampInteger(patch.qiCurrent ?? current.qiCurrent, 0, nextQiCap),
+    qiCap: nextQiCap,
+    cultivationStageIdx: nextStageIdx,
+    roots: patch.roots ? normalizeRoots(patch.roots) : current.roots,
+    activeTechniqueId: patch.activeTechniqueId ?? current.activeTechniqueId,
+    breakthroughBonusUntil: patch.breakthroughBonusUntil ?? current.breakthroughBonusUntil,
+    alertShieldUntil: patch.alertShieldUntil ?? current.alertShieldUntil,
+    alertShieldStrength: clampInteger(patch.alertShieldStrength ?? current.alertShieldStrength, 0, 100)
   };
 
   const updatedAt = nowIso();
   getDb()
     .prepare(
       `UPDATE players
-       SET spirit_stones = ?, qi_current = ?, qi_cap = ?, cultivation_stage_idx = ?, updated_at = ?
+       SET realm = ?, spirit_stones = ?, qi_current = ?, qi_cap = ?, cultivation_stage_idx = ?, roots = ?,
+        active_technique_id = ?, breakthrough_bonus_until = ?, alert_shield_until = ?, alert_shield_strength = ?, updated_at = ?
        WHERE session_id = ?`
     )
-    .run(next.spiritStones, next.qiCurrent, next.qiCap, next.cultivationStageIdx, updatedAt, sessionId);
+    .run(
+      next.realm,
+      next.spiritStones,
+      next.qiCurrent,
+      next.qiCap,
+      next.cultivationStageIdx,
+      JSON.stringify(next.roots),
+      next.activeTechniqueId,
+      next.breakthroughBonusUntil,
+      next.alertShieldUntil,
+      next.alertShieldStrength,
+      updatedAt,
+      sessionId
+    );
 
   return next;
 }
@@ -137,8 +189,9 @@ function insertPlayer(sessionId: string, playerId: string, createdAt: string): v
     .prepare(
       `INSERT INTO players (
         id, session_id, name, realm, has_illegal_chip, visible_traits, recent_actions,
-        spirit_stones, qi_current, qi_cap, cultivation_stage_idx, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        spirit_stones, qi_current, qi_cap, cultivation_stage_idx, roots, active_technique_id,
+        breakthrough_bonus_until, alert_shield_until, alert_shield_strength, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       playerId,
@@ -152,6 +205,11 @@ function insertPlayer(sessionId: string, playerId: string, createdAt: string): v
       defaultPlayer.qiCurrent,
       defaultPlayer.qiCap,
       defaultPlayer.cultivationStageIdx,
+      JSON.stringify(defaultPlayer.roots),
+      defaultPlayer.activeTechniqueId,
+      defaultPlayer.breakthroughBonusUntil,
+      defaultPlayer.alertShieldUntil,
+      defaultPlayer.alertShieldStrength,
       createdAt,
       createdAt
     );
@@ -169,7 +227,12 @@ function mapPlayer(row: PlayerRow): PlayerState {
     spiritStones: row.spirit_stones,
     qiCurrent: row.qi_current,
     qiCap: row.qi_cap,
-    cultivationStageIdx: row.cultivation_stage_idx
+    cultivationStageIdx: row.cultivation_stage_idx,
+    roots: parseRoots(row.roots),
+    activeTechniqueId: row.active_technique_id,
+    breakthroughBonusUntil: row.breakthrough_bonus_until,
+    alertShieldUntil: row.alert_shield_until,
+    alertShieldStrength: row.alert_shield_strength
   };
 }
 
@@ -180,6 +243,34 @@ function parseStringArray(value: string): string[] {
   } catch {
     return [];
   }
+}
+
+function parseRoots(value: string): ElementRoots {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRootRecord(parsed) ? normalizeRoots(parsed) : { ...defaultRoots };
+  } catch {
+    return { ...defaultRoots };
+  }
+}
+
+function normalizeRoots(roots: ElementRoots): ElementRoots {
+  return {
+    metal: clampInteger(roots.metal, 0, 100),
+    wood: clampInteger(roots.wood, 0, 100),
+    water: clampInteger(roots.water, 0, 100),
+    fire: clampInteger(roots.fire, 0, 100),
+    earth: clampInteger(roots.earth, 0, 100)
+  };
+}
+
+function isRootRecord(value: unknown): value is ElementRoots {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const record = value as Record<RootElement, unknown>;
+  return ["metal", "wood", "water", "fire", "earth"].every((key) => typeof record[key as RootElement] === "number");
 }
 
 function clampInteger(value: number, min: number, max: number): number {

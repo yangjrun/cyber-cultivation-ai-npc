@@ -1,3 +1,28 @@
+import { fetchJsonWithRetry } from "./apiClient";
+
+export type RootElement = "metal" | "wood" | "water" | "fire" | "earth";
+
+export type ElementRoots = Record<RootElement, number>;
+
+export type ItemEffect =
+  | { type: "restore_qi"; amount: number }
+  | { type: "reduce_alert"; amount: number }
+  | { type: "breakthrough_bonus"; amount: number; durationSeconds: number };
+
+export type ItemDefinition = {
+  id: string;
+  name: string;
+  type: "material" | "pill" | "junk";
+  description: string;
+  effect?: ItemEffect;
+};
+
+export type InventoryItem = {
+  itemId: string;
+  quantity: number;
+  item: ItemDefinition | null;
+};
+
 export type PlayerState = {
   id: string;
   sessionId: string;
@@ -10,6 +35,11 @@ export type PlayerState = {
   qiCurrent: number;
   qiCap: number;
   cultivationStageIdx: number;
+  roots: ElementRoots;
+  activeTechniqueId: string;
+  breakthroughBonusUntil: string | null;
+  alertShieldUntil: string | null;
+  alertShieldStrength: number;
 };
 
 export type NpcStateSnapshot = {
@@ -25,6 +55,15 @@ export type SessionResponse = {
   player: PlayerState;
   npcState: NpcStateSnapshot | null;
   memories: string[];
+  inventory: InventoryItem[];
+};
+
+export const defaultRoots: ElementRoots = {
+  metal: 70,
+  wood: 40,
+  water: 12,
+  fire: 8,
+  earth: 16
 };
 
 export const defaultPlayer: PlayerState = {
@@ -38,27 +77,22 @@ export const defaultPlayer: PlayerState = {
   spiritStones: 0,
   qiCurrent: 0,
   qiCap: 100,
-  cultivationStageIdx: 0
+  cultivationStageIdx: 0,
+  roots: defaultRoots,
+  activeTechniqueId: "basic_breathing",
+  breakthroughBonusUntil: null,
+  alertShieldUntil: null,
+  alertShieldStrength: 0
 };
 
 export async function createSession(): Promise<SessionResponse> {
-  const res = await fetch("/api/session", { method: "POST" });
-
-  if (!res.ok) {
-    throw new Error("session create failed");
-  }
-
-  return normalizeSessionResponse(await res.json() as unknown);
+  const raw = await fetchJsonWithRetry("/api/session", { method: "POST" });
+  return normalizeSessionResponse(raw);
 }
 
 export async function getSession(sessionId: string): Promise<SessionResponse> {
-  const res = await fetch(`/api/session/${encodeURIComponent(sessionId)}`);
-
-  if (!res.ok) {
-    throw new Error("session restore failed");
-  }
-
-  return normalizeSessionResponse(await res.json() as unknown);
+  const raw = await fetchJsonWithRetry(`/api/session/${encodeURIComponent(sessionId)}`);
+  return normalizeSessionResponse(raw);
 }
 
 export function normalizeSessionResponse(raw: unknown): SessionResponse {
@@ -72,7 +106,8 @@ export function normalizeSessionResponse(raw: unknown): SessionResponse {
     playerId: playerId || player.id,
     player,
     npcState: normalizeNpcState(record.npcState),
-    memories: normalizeStringArray(record.memories, [])
+    memories: normalizeStringArray(record.memories, []),
+    inventory: normalizeInventory(record.inventory)
   };
 }
 
@@ -91,7 +126,87 @@ export function normalizePlayer(raw: unknown, fallbackSessionId = "", fallbackPl
     spiritStones: normalizeNumber(record.spiritStones, defaultPlayer.spiritStones),
     qiCurrent: normalizeNumber(record.qiCurrent, defaultPlayer.qiCurrent),
     qiCap,
-    cultivationStageIdx: normalizeNumber(record.cultivationStageIdx, defaultPlayer.cultivationStageIdx)
+    cultivationStageIdx: normalizeNumber(record.cultivationStageIdx, defaultPlayer.cultivationStageIdx),
+    roots: normalizeRoots(record.roots),
+    activeTechniqueId: normalizeString(record.activeTechniqueId) || defaultPlayer.activeTechniqueId,
+    breakthroughBonusUntil: normalizeNullableString(record.breakthroughBonusUntil),
+    alertShieldUntil: normalizeNullableString(record.alertShieldUntil),
+    alertShieldStrength: normalizeNumber(record.alertShieldStrength, defaultPlayer.alertShieldStrength)
+  };
+}
+
+export function normalizeInventory(raw: unknown): InventoryItem[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw.flatMap((entry): InventoryItem[] => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const itemId = normalizeString(entry.itemId);
+    const quantity = normalizeNumber(entry.quantity, 0);
+
+    if (!itemId || quantity <= 0) {
+      return [];
+    }
+
+    return [{ itemId, quantity, item: normalizeItemDefinition(entry.item) }];
+  });
+}
+
+function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+
+  const id = normalizeString(raw.id);
+  const name = normalizeString(raw.name);
+  const type = normalizeString(raw.type);
+
+  if (!id || !name || !["material", "pill", "junk"].includes(type)) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    type: type as ItemDefinition["type"],
+    description: normalizeString(raw.description),
+    effect: normalizeEffect(raw.effect)
+  };
+}
+
+function normalizeEffect(raw: unknown): ItemEffect | undefined {
+  if (!isRecord(raw) || typeof raw.type !== "string") {
+    return undefined;
+  }
+
+  if (raw.type === "restore_qi" || raw.type === "reduce_alert") {
+    return { type: raw.type, amount: normalizeNumber(raw.amount, 0) };
+  }
+
+  if (raw.type === "breakthrough_bonus") {
+    return {
+      type: "breakthrough_bonus",
+      amount: normalizeNumber(raw.amount, 0),
+      durationSeconds: normalizeNumber(raw.durationSeconds, 0)
+    };
+  }
+
+  return undefined;
+}
+
+function normalizeRoots(raw: unknown): ElementRoots {
+  const record = isRecord(raw) ? raw : {};
+
+  return {
+    metal: normalizeNumber(record.metal, defaultRoots.metal),
+    wood: normalizeNumber(record.wood, defaultRoots.wood),
+    water: normalizeNumber(record.water, defaultRoots.water),
+    fire: normalizeNumber(record.fire, defaultRoots.fire),
+    earth: normalizeNumber(record.earth, defaultRoots.earth)
   };
 }
 
@@ -116,6 +231,10 @@ function normalizeNpcState(value: unknown): NpcStateSnapshot | null {
 
 function normalizeString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function normalizeNullableString(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
 }
 
 function normalizeNumber(value: unknown, fallback: number): number {

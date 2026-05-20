@@ -140,6 +140,16 @@ function normalizeIntent(value: unknown): NpcIntent {
     return { type: "none", params: {} };
   }
 
+  if (type === "teach_technique") {
+    const params = isRecord(value.params) ? value.params : {};
+
+    if (params.technique_id === "basic_breathing") {
+      return { type, params: { technique_id: "basic_breathing" } };
+    }
+
+    return { type: "none", params: {} };
+  }
+
   return {
     type,
     params: {}

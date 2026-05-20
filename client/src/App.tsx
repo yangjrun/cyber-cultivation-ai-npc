@@ -1,5 +1,8 @@
 import { useEffect } from "react";
+import { AlchemyModal } from "./components/AlchemyModal";
+import { CultivationPanel } from "./components/CultivationPanel";
 import { DialoguePanel } from "./components/DialoguePanel";
+import { InventoryPanel } from "./components/InventoryPanel";
 import { MemoryPanel } from "./components/MemoryPanel";
 import { NpcProfilePanel } from "./components/NpcProfilePanel";
 import { PlayerPanel } from "./components/PlayerPanel";
@@ -115,12 +118,15 @@ export default function App() {
 
         <aside className="space-y-4">
           <PlayerPanel />
+          <CultivationPanel />
+          <InventoryPanel />
           <StatePanel state={npcState} />
           <MemoryPanel memories={memories} />
           <ActionPanel actionResult={lastActionResult} intentType={lastIntent} />
           <SystemLogPanel logs={systemLogs} />
         </aside>
       </div>
+      <AlchemyModal />
     </main>
   );
 }

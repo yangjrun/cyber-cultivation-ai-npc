@@ -1,6 +1,9 @@
 import { create } from "zustand";
+import { refineAlchemy, type MaterialSelection } from "../api/alchemyApi";
 import { resetChat, sendChat, type NpcState } from "../api/chatApi";
-import { createSession, defaultPlayer, getSession, type PlayerState } from "../api/sessionApi";
+import { breakthrough as requestBreakthrough, cultivate as requestCultivate } from "../api/cultivationApi";
+import { useInventoryItem } from "../api/inventoryApi";
+import { createSession, defaultPlayer, getSession, type InventoryItem, type PlayerState } from "../api/sessionApi";
 import type { ChatMessage } from "../components/DialoguePanel";
 import type { SystemLog } from "../components/SystemLogPanel";
 
@@ -25,15 +28,23 @@ type GameState = {
   sessionId: string;
   playerId: string;
   player: PlayerState;
+  inventory: InventoryItem[];
   sessionLoading: boolean;
   messages: ChatMessage[];
   input: string;
   loading: boolean;
+  cultivationLoading: boolean;
+  breakthroughLoading: boolean;
+  alchemyLoading: boolean;
   error: string;
   npcState: NpcState;
   memories: string[];
   lastActionResult: string;
   lastIntent: string;
+  lastCultivationResult: string;
+  lastBreakthroughResult: string;
+  lastAlchemyResult: string;
+  alchemyModalOpen: boolean;
   systemLogs: SystemLog[];
 };
 
@@ -43,6 +54,12 @@ type GameActions = {
   selectQuickPrompt: (value: string) => void;
   sendMessage: () => Promise<void>;
   resetDialogue: () => Promise<void>;
+  cultivate: (duration: number) => Promise<void>;
+  breakthrough: () => Promise<void>;
+  refineAlchemy: (recipeId: string, materials: MaterialSelection[], fireLevel: number) => Promise<void>;
+  useItem: (itemId: string) => Promise<void>;
+  openAlchemyModal: () => void;
+  closeAlchemyModal: () => void;
   appendLog: (text: string) => void;
 };
 
@@ -66,6 +83,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         sessionId: session.sessionId,
         playerId: session.playerId,
         player: session.player,
+        inventory: session.inventory,
         npcState: session.npcState ?? initialNpcState,
         memories: session.memories.slice(-MAX_MEMORIES),
         sessionLoading: false
@@ -179,6 +197,107 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  cultivate: async (duration: number) => {
+    const sessionId = await ensureSession(get);
+
+    if (!sessionId) {
+      return;
+    }
+
+    set({ cultivationLoading: true, error: "" });
+
+    try {
+      const response = await requestCultivate(sessionId, duration);
+      set({ player: response.player, lastCultivationResult: response.message });
+      get().appendLog(`打坐完成：+${response.qiGained} 灵气。`);
+    } catch {
+      set({ error: "修炼链路中断：打坐失败。" });
+      get().appendLog("修炼失败：后端未响应。");
+    } finally {
+      set({ cultivationLoading: false });
+    }
+  },
+
+  breakthrough: async () => {
+    const sessionId = await ensureSession(get);
+
+    if (!sessionId) {
+      return;
+    }
+
+    set({ breakthroughLoading: true, error: "" });
+
+    try {
+      const response = await requestBreakthrough(sessionId);
+      set({
+        player: response.player,
+        npcState: response.npcState ?? get().npcState,
+        lastBreakthroughResult: response.message
+      });
+      get().appendLog(`突破结果：${response.message}`);
+    } catch {
+      set({ error: "突破链路中断：请稍后再试。" });
+      get().appendLog("突破失败：后端未响应。");
+    } finally {
+      set({ breakthroughLoading: false });
+    }
+  },
+
+  refineAlchemy: async (recipeId: string, materials: MaterialSelection[], fireLevel: number) => {
+    const sessionId = await ensureSession(get);
+
+    if (!sessionId) {
+      return;
+    }
+
+    set({ alchemyLoading: true, error: "" });
+
+    try {
+      const response = await refineAlchemy(sessionId, recipeId, materials, fireLevel);
+      set({ inventory: response.inventory, lastAlchemyResult: response.message, alchemyModalOpen: false });
+      get().appendLog(`炼丹结果：${response.message}`);
+    } catch {
+      set({ error: "炼丹链路中断：材料或炉火出了问题。" });
+      get().appendLog("炼丹失败：后端拒绝结算。");
+    } finally {
+      set({ alchemyLoading: false });
+    }
+  },
+
+  useItem: async (itemId: string) => {
+    const sessionId = await ensureSession(get);
+
+    if (!sessionId) {
+      return;
+    }
+
+    set({ alchemyLoading: true, error: "" });
+
+    try {
+      const response = await useInventoryItem(sessionId, itemId);
+      set({
+        player: response.player,
+        npcState: response.npcState ?? get().npcState,
+        inventory: response.inventory,
+        lastAlchemyResult: response.message
+      });
+      get().appendLog(`服用物品：${response.message}`);
+    } catch {
+      set({ error: "物品使用失败。" });
+      get().appendLog("背包结算失败：无法使用物品。");
+    } finally {
+      set({ alchemyLoading: false });
+    }
+  },
+
+  openAlchemyModal: () => {
+    set({ alchemyModalOpen: true });
+  },
+
+  closeAlchemyModal: () => {
+    set({ alchemyModalOpen: false });
+  },
+
   appendLog: (text: string) => {
     set((state) => {
       const next = [...state.systemLogs, { id: uid(), time: nowTime(), text }];
@@ -196,17 +315,33 @@ function createInitialState(): GameState {
     sessionId: "",
     playerId: "",
     player: defaultPlayer,
+    inventory: [],
     sessionLoading: false,
     messages: [createWelcomeMessage()],
     input: "",
     loading: false,
+    cultivationLoading: false,
+    breakthroughLoading: false,
+    alchemyLoading: false,
     error: "",
     npcState: initialNpcState,
     memories: [],
     lastActionResult: "",
     lastIntent: "none",
+    lastCultivationResult: "",
+    lastBreakthroughResult: "",
+    lastAlchemyResult: "",
+    alchemyModalOpen: false,
     systemLogs: [createInitialLog()]
   };
+}
+
+async function ensureSession(get: () => GameStore): Promise<string> {
+  if (!get().sessionId) {
+    await get().initializeSession();
+  }
+
+  return get().sessionId;
 }
 
 async function restoreOrCreateSession(sessionId: string) {

@@ -2,7 +2,7 @@ import DatabaseConstructor, { type Database } from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInitialMigration } from "./migrations/001_init.js";
+import { runMigrations } from "./migrations/index.js";
 
 let db: Database | null = null;
 
@@ -20,7 +20,7 @@ export function getDb(): Database {
   db = new DatabaseConstructor(dbPath);
   db.pragma("foreign_keys = ON");
   db.pragma("journal_mode = WAL");
-  runInitialMigration(db);
+  runMigrations(db);
 
   return db;
 }

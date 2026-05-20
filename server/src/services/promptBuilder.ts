@@ -1,5 +1,7 @@
+import { rootLabels } from "../data/cultivationBalance.js";
+import { getTechnique } from "../data/techniques.js";
 import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
-import type { PlayerState } from "../types/player.js";
+import type { PlayerState, RootElement } from "../types/player.js";
 
 type PromptInput = {
   npcId: string;
@@ -127,12 +129,23 @@ function buildPlayerNarrative(player: PlayerState): string {
       ? `最近做过：${player.recentActions.join("，")}`
       : "最近没做过值得记的事"
   ];
+  const rootsText = (Object.entries(player.roots) as Array<[RootElement, number]>)
+    .map(([element, score]) => `${rootLabels[element]}${score}`)
+    .join(" / ");
+  const technique = getTechnique(player.activeTechniqueId);
+  const effects = [
+    player.breakthroughBonusUntil ? "破境丹药力未散" : "",
+    player.alertShieldStrength > 0 ? `遮云药力${player.alertShieldStrength}` : ""
+  ].filter(Boolean);
 
   return [
     `名字：${player.name}`,
     `修为：${player.realm}`,
     `灵石：${player.spiritStones}`,
     `灵气池：${player.qiCurrent}/${player.qiCap}`,
+    `五行灵根：${rootsText}`,
+    `当前功法：${technique.name}`,
+    effects.length > 0 ? `丹药状态：${effects.join("，")}` : "丹药状态：无",
     `白璃眼里的他：${tags.join("；")}`
   ].join("\n");
 }

@@ -1,12 +1,17 @@
 import { useGameStore } from "../state/store";
+import { RootsRadarChart } from "./RootsRadarChart";
 import { StatBar } from "./StatBar";
 
-const stageLabels = ["练气一层", "练气二层", "练气三层", "练气四层", "练气五层", "练气六层", "练气七层", "练气八层", "练气九层"];
+const stageLabels = [
+  "练气一层", "练气二层", "练气三层", "练气四层", "练气五层", "练气六层", "练气七层", "练气八层", "练气九层",
+  "筑基初期", "筑基中期", "筑基后期", "金丹初期", "金丹中期", "金丹后期"
+];
 
 export function PlayerPanel() {
   const player = useGameStore((state) => state.player);
   const qiPercent = player.qiCap > 0 ? Math.round((player.qiCurrent / player.qiCap) * 100) : 0;
   const stageLabel = stageLabels[player.cultivationStageIdx] ?? player.realm;
+  const progressValue = Math.round((player.cultivationStageIdx / Math.max(1, stageLabels.length - 1)) * 100);
 
   return (
     <section className="cyber-panel cyber-panel--violet cyber-corner relative overflow-hidden p-4">
@@ -28,9 +33,11 @@ export function PlayerPanel() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <RootsRadarChart roots={player.roots} />
+
+      <div className="mt-3 space-y-3">
         <StatBar label="qi_pool" sublabel={`${player.qiCurrent}/${player.qiCap}`} value={qiPercent} tone="violet" />
-        <StatBar label="cultivation" sublabel={player.realm} value={Math.min(100, player.cultivationStageIdx * 8)} tone="cyan" />
+        <StatBar label="cultivation" sublabel={player.realm} value={progressValue} tone="cyan" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
