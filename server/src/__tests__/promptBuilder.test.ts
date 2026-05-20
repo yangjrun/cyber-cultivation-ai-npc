@@ -3,7 +3,7 @@ import { resetGameState } from "../services/gameState.js";
 import { clearAllMemoriesForTests } from "../services/memoryStore.js";
 import { clearRelationsForTests } from "../services/npcRelationsStore.js";
 import { clearSessionsForTests, createSession, getPlayer } from "../services/playerStore.js";
-import { buildSystemPrompt, buildUserTurn } from "../services/promptBuilder.js";
+import { buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
 import { clearQuestProgressForTests } from "../services/questStore.js";
 import { getSceneSnapshot } from "../services/sceneStore.js";
 import { scopedNpcId } from "../services/scopedNpcId.js";
@@ -154,6 +154,57 @@ describe("promptBuilder", () => {
 
       expect(baseline).not.toBe(withCustomState);
       expect(withCustomState).toContain("trust=99");
+    });
+  });
+
+  describe("mergeMemoriesForPrompt", () => {
+    it("places retrieved memories before recent ones", () => {
+      const merged = mergeMemoriesForPrompt(
+        [{ content: "玩家想买屏蔽丹" }, { content: "玩家威胁过白璃" }],
+        ["最近一次玩家来访"]
+      );
+
+      expect(merged).toEqual([
+        "玩家想买屏蔽丹",
+        "玩家威胁过白璃",
+        "最近一次玩家来访"
+      ]);
+    });
+
+    it("deduplicates across retrieved and recent", () => {
+      const merged = mergeMemoriesForPrompt(
+        [{ content: "玩家提到苏鹤" }],
+        ["玩家提到苏鹤", "玩家走时回头"]
+      );
+
+      expect(merged).toEqual(["玩家提到苏鹤", "玩家走时回头"]);
+    });
+
+    it("caps merged list at 5 entries", () => {
+      const merged = mergeMemoriesForPrompt(
+        Array.from({ length: 10 }, (_, i) => ({ content: `r${i}` })),
+        Array.from({ length: 5 }, (_, i) => `n${i}`)
+      );
+
+      expect(merged).toHaveLength(5);
+      expect(merged.every((entry) => entry.startsWith("r"))).toBe(true);
+    });
+
+    it("truncates very long memory entries", () => {
+      const long = "啊".repeat(100);
+      const merged = mergeMemoriesForPrompt([{ content: long }], []);
+
+      expect(merged[0].length).toBeLessThanOrEqual(61);
+      expect(merged[0].endsWith("…")).toBe(true);
+    });
+
+    it("ignores blank entries", () => {
+      const merged = mergeMemoriesForPrompt(
+        [{ content: "" }, { content: "  " }, { content: "实际记忆" }],
+        ["  ", "另一条记忆"]
+      );
+
+      expect(merged).toEqual(["实际记忆", "另一条记忆"]);
     });
   });
 });

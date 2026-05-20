@@ -1,9 +1,9 @@
 import { Router, type Response } from "express";
 import { applyStateDelta, executeIntent, getNpcProfile, getNpcState, resetNpcState } from "../services/gameState.js";
 import { generateNpcResponse } from "../services/llmClient.js";
-import { addMemory, clearMemories, getRecentMemories } from "../services/memoryStore.js";
+import { addMemory, clearMemories, getRecentMemories, retrieveRelevantMemories } from "../services/memoryStore.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
-import { buildSystemPrompt, buildUserTurn } from "../services/promptBuilder.js";
+import { buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
 import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "../services/questEngine.js";
 import { validateLlmResponse } from "../services/responseValidator.js";
 import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
@@ -56,7 +56,11 @@ chatRouter.post("/", async (req, res, next) => {
 
     const player = resolvePlayer(sessionId);
     const scopedNpcId = makeScopedNpcId(sessionId, npcId);
-    const memories = getRecentMemories(scopedNpcId, 5);
+    const [retrieved, recent] = await Promise.all([
+      retrieveRelevantMemories(scopedNpcId, playerInput, 5),
+      Promise.resolve(getRecentMemories(scopedNpcId, 3))
+    ]);
+    const memories = mergeMemoriesForPrompt(retrieved, recent);
     const activeSceneId = getActiveSceneId(sessionId);
     const sceneSnapshot = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
     const activeQuests = getRelevantQuests(sessionId, npcId);

@@ -146,6 +146,40 @@ export function buildPrompt(input: PromptInput): string {
   return `${systemPrompt}\n\n${userTurn}`;
 }
 
+const MEMORY_MERGE_LIMIT = 5;
+const MEMORY_TRUNCATE = 60;
+
+export function mergeMemoriesForPrompt(
+  retrieved: Array<{ content: string }>,
+  recent: string[]
+): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  const push = (content: string): void => {
+    const trimmed = content.trim();
+
+    if (!trimmed || seen.has(trimmed)) {
+      return;
+    }
+
+    seen.add(trimmed);
+    merged.push(trimmed.length > MEMORY_TRUNCATE ? `${trimmed.slice(0, MEMORY_TRUNCATE)}…` : trimmed);
+  };
+
+  for (const item of retrieved) {
+    if (merged.length >= MEMORY_MERGE_LIMIT) break;
+    push(item.content);
+  }
+
+  for (const item of recent) {
+    if (merged.length >= MEMORY_MERGE_LIMIT) break;
+    push(item);
+  }
+
+  return merged;
+}
+
 function buildSceneSection(scene: SceneSnapshot, currentNpcId: string): string {
   const peers = scene.npcs
     .filter((entry) => entry.profile.npc_id !== currentNpcId)

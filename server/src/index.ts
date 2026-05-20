@@ -6,6 +6,7 @@ import { createRateLimit } from "./middleware/rateLimit.js";
 import { alchemyRouter } from "./routes/alchemy.js";
 import { chatRouter } from "./routes/chat.js";
 import { breakthroughRouter, cultivateRouter } from "./routes/cultivation.js";
+import { debugRouter, isDebugApiEnabled } from "./routes/debug.js";
 import { inventoryRouter } from "./routes/inventory.js";
 import { questRouter } from "./routes/quest.js";
 import { sceneRouter } from "./routes/scene.js";
@@ -23,6 +24,10 @@ export function createApp() {
   app.use("/api/inventory", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "背包请求过于频繁，请稍后再试。" }), inventoryRouter);
   app.use("/api/scenes", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "场景请求过于频繁，请稍后再试。" }), sceneRouter);
   app.use("/api/quests", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "任务请求过于频繁，请稍后再试。" }), questRouter);
+
+  if (isDebugApiEnabled()) {
+    app.use("/api/debug", createRateLimit({ windowMs: 60_000, maxRequests: 120, message: "调试请求过于频繁，请稍后再试。" }), debugRouter);
+  }
 
   if (process.env.NODE_ENV === "production") {
     const clientDist = path.join(getRepoRoot(), "client", "dist");
