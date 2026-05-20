@@ -83,7 +83,7 @@ chatRouter.post("/", async (req, res, next) => {
     const actionResult = [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / ");
 
     if (npcResponse.memory) {
-      addMemory(scopedNpcId, npcResponse.memory);
+      await addMemory(scopedNpcId, npcResponse.memory);
     }
 
     const responseBody: ChatResponseBody = {
