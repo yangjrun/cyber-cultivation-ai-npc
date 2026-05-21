@@ -13,6 +13,16 @@ export type NpcIntent = {
   params: Record<string, unknown>;
 };
 
+export type ChatReply = {
+  npcId: string;
+  dialogue: string;
+  tone: string;
+  intent: NpcIntent;
+  state: NpcState | null;
+  memoryAdded: string;
+  actionResult: string;
+};
+
 export type ChatResponse = {
   dialogue: string;
   tone: string;
@@ -21,6 +31,7 @@ export type ChatResponse = {
   memoryAdded: string;
   actionResult: string;
   player: PlayerState;
+  replies: ChatReply[];
 };
 
 const DEFAULT_DIALOGUE = "……丹炉的蓝火沉默了一瞬。";
@@ -38,7 +49,7 @@ export async function sendChat(playerInput: string, npcId: string, sessionId?: s
     })
   });
 
-  return normalizeChatResponse(raw);
+  return normalizeChatResponse(raw, npcId);
 }
 
 export async function resetChat(npcId: string, sessionId?: string): Promise<void> {
@@ -54,17 +65,39 @@ export async function resetChat(npcId: string, sessionId?: string): Promise<void
   });
 }
 
-export function normalizeChatResponse(raw: unknown): ChatResponse {
+export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): ChatResponse {
   const record = isRecord(raw) ? raw : {};
+  const fallbackReply = normalizeReply(record, fallbackNpcId);
+  const replies = Array.isArray(record.replies)
+    ? record.replies.map((reply) => normalizeReply(reply, fallbackNpcId)).filter((reply) => reply.dialogue)
+    : [];
+  const normalizedReplies = replies.length > 0 ? replies : [fallbackReply];
+  const [firstReply] = normalizedReplies;
 
   return {
+    dialogue: firstReply.dialogue,
+    tone: firstReply.tone,
+    intent: firstReply.intent,
+    state: firstReply.state,
+    memoryAdded: firstReply.memoryAdded,
+    actionResult: firstReply.actionResult,
+    player: normalizePlayer(record.player, defaultPlayer.sessionId, defaultPlayer.id),
+    replies: normalizedReplies
+  };
+}
+
+function normalizeReply(raw: unknown, fallbackNpcId: string): ChatReply {
+  const record = isRecord(raw) ? raw : {};
+  const npcId = normalizeString(record.npcId) || fallbackNpcId;
+
+  return {
+    npcId,
     dialogue: normalizeString(record.dialogue) || DEFAULT_DIALOGUE,
     tone: normalizeString(record.tone),
     intent: normalizeIntent(record.intent),
     state: normalizeState(record.state),
     memoryAdded: normalizeString(record.memoryAdded),
-    actionResult: normalizeString(record.actionResult),
-    player: normalizePlayer(record.player, defaultPlayer.sessionId, defaultPlayer.id)
+    actionResult: normalizeString(record.actionResult)
   };
 }
 

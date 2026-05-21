@@ -20,6 +20,16 @@ export type ValidatedNpcResponse = {
   memory: string;
 };
 
+export type ChatReply = {
+  npcId: string;
+  dialogue: string;
+  tone: string;
+  intent: NpcIntent;
+  state: NpcState;
+  memoryAdded: string;
+  actionResult: string;
+};
+
 export type ChatResponseBody = {
   dialogue: string;
   tone: string;
@@ -28,6 +38,12 @@ export type ChatResponseBody = {
   memoryAdded: string;
   actionResult: string;
   player: PlayerState;
+  replies: ChatReply[];
+  groupChat: {
+    sceneId: string;
+    speakerOrder: string[];
+    partialFailure?: boolean;
+  };
 };
 
 export type PromptContext = {

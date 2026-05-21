@@ -173,27 +173,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     try {
       const response = await sendChat(trimmed, activeNpcId, activeSessionId);
-      const npcName = getNpcName(activeNpcId);
-      const npcMessage: ChatMessage = {
+      const npcMessages: ChatMessage[] = response.replies.map((reply) => ({
         id: uid(),
         speaker: "npc",
-        name: npcName,
-        text: response.dialogue,
-        tone: response.tone || undefined,
-        intentType: response.intent.type,
+        npcId: reply.npcId,
+        name: getNpcName(reply.npcId),
+        text: reply.dialogue,
+        tone: reply.tone || undefined,
+        intentType: reply.intent.type,
         timestamp: nowTime()
-      };
+      }));
 
       set((state) => {
-        const nextNpcStates = response.state
-          ? { ...state.npcStates, [activeNpcId]: response.state }
-          : state.npcStates;
-        const nextMemories = response.memoryAdded
-          ? appendMemory(state.memoriesByNpc, activeNpcId, response.memoryAdded)
-          : state.memoriesByNpc;
+        const nextNpcStates = response.replies.reduce(
+          (acc, reply) => (reply.state ? { ...acc, [reply.npcId]: reply.state } : acc),
+          state.npcStates
+        );
+        const nextMemories = response.replies.reduce(
+          (acc, reply) => (reply.memoryAdded ? appendMemory(acc, reply.npcId, reply.memoryAdded) : acc),
+          state.memoriesByNpc
+        );
 
         return {
-          messagesByNpc: appendMessage(state.messagesByNpc, activeNpcId, npcMessage),
+          messagesByNpc: appendMessages(state.messagesByNpc, activeNpcId, npcMessages),
           npcStates: nextNpcStates,
           player: response.player,
           lastIntent: response.intent.type,
@@ -202,10 +204,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         };
       });
 
-      get().appendLog(`收到 ${npcName} 回复：tone=${response.tone || "未知"}。`);
+      for (const reply of response.replies) {
+        get().appendLog(`收到 ${getNpcName(reply.npcId)} 回复：tone=${reply.tone || "未知"}。`);
+      }
       get().appendLog(`intent=${response.intent.type} 已校验。`);
 
-      if (response.memoryAdded) {
+      if (response.replies.some((reply) => reply.memoryAdded)) {
         get().appendLog("记忆已写入。");
       }
 
@@ -483,8 +487,12 @@ async function restoreOrCreateSession(sessionId: string) {
 }
 
 function appendMessage(map: Record<string, ChatMessage[]>, npcId: string, message: ChatMessage): Record<string, ChatMessage[]> {
+  return appendMessages(map, npcId, [message]);
+}
+
+function appendMessages(map: Record<string, ChatMessage[]>, npcId: string, messages: ChatMessage[]): Record<string, ChatMessage[]> {
   const current = map[npcId] ?? [];
-  return { ...map, [npcId]: [...current, message] };
+  return { ...map, [npcId]: [...current, ...messages] };
 }
 
 function appendMemory(map: Record<string, string[]>, npcId: string, memory: string): Record<string, string[]> {

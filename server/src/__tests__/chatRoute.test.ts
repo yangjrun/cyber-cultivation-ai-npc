@@ -52,6 +52,16 @@ describe("POST /api/chat", () => {
     expect(response.body.memoryAdded).toBe("玩家想要躲避监察院扫描的丹药。");
     expect(response.body.actionResult).toContain("接受任务：偷一枚监察密钥");
     expect(response.body.player).toMatchObject({ name: "陆玄", qiCurrent: 0, qiCap: 100, spiritStones: 0 });
+    expect(response.body.replies).toEqual([
+      expect.objectContaining({
+        npcId: "baili",
+        dialogue: "能做，但你得先偷一枚监察密钥。",
+        intent: { type: "give_quest", params: { quest_id: "steal_inspector_key" } },
+        state: { trust: 23, fear: 11, anger: 0, tianDaoAlert: 45 },
+        memoryAdded: "玩家想要躲避监察院扫描的丹药。"
+      })
+    ]);
+    expect(response.body.groupChat).toEqual({ sceneId: "black_market", speakerOrder: ["baili"] });
     expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(["玩家想要躲避监察院扫描的丹药。"]);
   });
 
@@ -130,6 +140,45 @@ describe("POST /api/chat", () => {
         .expect(200);
       expect(response.body.dialogue).toEqual(expect.any(String));
     }
+  });
+
+  it("returns ordered group replies for thunder tavern NPCs", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    await request(app)
+      .post("/api/scenes/switch")
+      .send({ sessionId, sceneId: "thunder_tavern" })
+      .expect(200);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "让我过，顺便打听苏鹤是不是卧底", npcId: "chimu", sessionId })
+      .expect(200);
+
+    expect(response.body.dialogue).toBe("过路费，三十灵石。");
+    expect(response.body.replies).toHaveLength(2);
+    expect(response.body.replies.map((reply: { npcId: string }) => reply.npcId)).toEqual(["chimu", "qinggu"]);
+    expect(response.body.replies[0]).toEqual(
+      expect.objectContaining({
+        npcId: "chimu",
+        dialogue: "过路费，三十灵石。",
+        state: { trust: 0, fear: 0, anger: 30, tianDaoAlert: 30 },
+        memoryAdded: "玩家试图通过赤目的卡口。"
+      })
+    );
+    expect(response.body.replies[1]).toEqual(
+      expect.objectContaining({
+        npcId: "qinggu",
+        dialogue: "你不去验一验？",
+        state: { trust: 12, fear: 5, anger: 0, tianDaoAlert: 25 },
+        memoryAdded: "玩家怀疑苏鹤的身份，青姑顺势卖了线索。",
+        actionResult: ""
+      })
+    );
+    expect(response.body.groupChat).toEqual({ sceneId: "thunder_tavern", speakerOrder: ["chimu", "qinggu"] });
+    expect(getRecentMemories(`${sessionId}::chimu`, 5)).toEqual(["玩家试图通过赤目的卡口。"]);
+    expect(getRecentMemories(`${sessionId}::qinggu`, 5)).toEqual(["玩家怀疑苏鹤的身份，青姑顺势卖了线索。"]);
   });
 
   it("walks a quest from give → in_progress → completed (qinggu→suhe verify path)", async () => {

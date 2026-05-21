@@ -3,6 +3,7 @@ import { getQuestsByGiver } from "../data/quests.js";
 import { getTechnique, techniques } from "../data/techniques.js";
 import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
 import { getExemplars, getRoleCard } from "./promptParts/index.js";
+import type { LlmMessage } from "../types/llm.js";
 import type { NpcState } from "../types/npc.js";
 import type { PlayerState, RootElement } from "../types/player.js";
 import type { QuestProgress } from "../types/quest.js";
@@ -34,14 +35,27 @@ export type PromptInput = {
   activeQuests?: QuestProgress[];
 };
 
+export type PriorNpcReply = {
+  npcId: string;
+  dialogue: string;
+};
+
+export type PromptMessagesInput = PromptInput & {
+  evolvedTraits?: string[];
+  priorReplies?: PriorNpcReply[];
+};
+
 export function buildSystemPrompt({ npcId, evolvedTraits }: SystemPromptInput): string {
+  return `${buildStableSystemPrompt(npcId)}${buildEvolvedTraitsSection(evolvedTraits)}`;
+}
+
+function buildStableSystemPrompt(npcId: string): string {
   const profile = getNpcProfile(npcId);
   const roleCard = getRoleCard(npcId);
   const exemplars = getExemplars(npcId);
   const questIds = getQuestsByGiver(npcId).map((quest) => quest.questId);
   const techniqueIds = Object.keys(techniques);
   const name = profile.name;
-  const evolved = normalizeEvolvedTraits(evolvedTraits);
 
   const questRule = questIds.length > 0
     ? `give_quest 的 quest_id 只能是 ${questIds.join("、")}，否则把 intent.type 改为 none。`
@@ -51,15 +65,11 @@ export function buildSystemPrompt({ npcId, evolvedTraits }: SystemPromptInput): 
     ? `teach_technique 的 technique_id 只能是 ${techniqueIds.join("、")}，否则把 intent.type 改为 none。`
     : `teach_technique 暂未开放，任何此 intent 都应改为 none。`;
 
-  const evolvedSection = evolved.length > 0
-    ? `\n\n# 演化人格（基于历史对话累计）\n\n${evolved.map((trait) => `- ${trait}`).join("\n")}`
-    : "";
-
   return `你在扮演赛博修仙游戏里的 NPC：${name}。请像写一段游戏对白那样写一句话——${name}是一个真实的人，不是说明书。
 
 # 角色卡
 
-${roleCard}${evolvedSection}
+${roleCard}
 
 # 可执行的内部意图（intent）
 
@@ -152,9 +162,63 @@ export function buildPrompt(input: PromptInput): string {
   return `${systemPrompt}\n\n${userTurn}`;
 }
 
+export function buildPromptMessages(input: PromptMessagesInput): LlmMessage[] {
+  const dynamicSections = [
+    buildEvolvedTraitsSection(input.evolvedTraits),
+    buildPriorRepliesSection(input.priorReplies),
+    buildUserTurn({
+      scopedNpcId: input.scopedNpcId,
+      npcId: input.npcId,
+      playerInput: input.playerInput,
+      memories: input.memories,
+      player: input.player,
+      scene: input.scene,
+      activeQuests: input.activeQuests
+    })
+  ].filter((section) => section !== "");
+
+  return [
+    {
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: buildStableSystemPrompt(input.npcId),
+          cacheControl: { type: "ephemeral" }
+        }
+      ]
+    },
+    {
+      role: "user",
+      content: dynamicSections.join("\n\n")
+    }
+  ];
+}
+
 const MEMORY_MERGE_LIMIT = 5;
 const MEMORY_TRUNCATE = 60;
 const MAX_EVOLVED_TRAITS = 5;
+
+function buildEvolvedTraitsSection(traits: string[] | undefined): string {
+  const evolved = normalizeEvolvedTraits(traits);
+
+  return evolved.length > 0
+    ? `\n\n# 演化人格（基于历史对话累计）\n\n${evolved.map((trait) => `- ${trait}`).join("\n")}`
+    : "";
+}
+
+function buildPriorRepliesSection(replies: PriorNpcReply[] | undefined): string {
+  if (!replies || replies.length === 0) {
+    return "";
+  }
+
+  const lines = replies.map((reply) => {
+    const name = getNpcProfile(reply.npcId).name;
+    return `- ${name}刚才说：${reply.dialogue}`;
+  });
+
+  return `# 同场 NPC 刚才的回应\n\n${lines.join("\n")}`;
+}
 
 function normalizeEvolvedTraits(traits: string[] | undefined): string[] {
   if (!traits || traits.length === 0) {

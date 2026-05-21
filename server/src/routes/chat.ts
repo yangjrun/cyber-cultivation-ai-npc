@@ -1,12 +1,9 @@
 import { Router, type Response } from "express";
-import { applyStateDelta, executeIntent, getNpcProfile, getNpcState, resetNpcState } from "../services/gameState.js";
-import { generateNpcResponse } from "../services/llmClient.js";
-import { addMemory, clearMemories, getRecentMemories, retrieveRelevantMemories } from "../services/memoryStore.js";
-import { deriveEvents, evaluateRules, getPersonality, recordEvents, resetPersonality } from "../services/personalityEvolution.js";
+import { getNpcProfile, resetNpcState } from "../services/gameState.js";
+import { orchestrateGroupChatTurn } from "../services/groupChatOrchestrator.js";
+import { clearMemories } from "../services/memoryStore.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
-import { buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
-import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "../services/questEngine.js";
-import { validateLlmResponse } from "../services/responseValidator.js";
+import { resetPersonality } from "../services/personalityEvolution.js";
 import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
 import { scopedNpcId as makeScopedNpcId } from "../services/scopedNpcId.js";
 import { validateChatRequest, validateResetRequest } from "../schemas/chat.js";
@@ -57,56 +54,35 @@ chatRouter.post("/", async (req, res, next) => {
     }
 
     const player = resolvePlayer(sessionId);
-    const scopedNpcId = makeScopedNpcId(sessionId, npcId);
-    const [retrieved, recent] = await Promise.all([
-      retrieveRelevantMemories(scopedNpcId, playerInput, 5),
-      Promise.resolve(getRecentMemories(scopedNpcId, 3))
-    ]);
-    const memories = mergeMemoriesForPrompt(retrieved, recent);
     const activeSceneId = getActiveSceneId(sessionId);
-    const sceneSnapshot = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
-    const activeQuests = getRelevantQuests(sessionId, npcId);
-    const evolvedTraits = getPersonality(sessionId, npcId).evolvedTraits;
-
-    const systemPrompt = buildSystemPrompt({ npcId, evolvedTraits });
-    const userTurn = buildUserTurn({
-      scopedNpcId,
-      npcId,
-      playerInput,
-      memories,
+    const scene = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
+    const groupChat = await orchestrateGroupChatTurn({
+      sessionId,
+      targetNpcId: npcId,
       player,
-      scene: sceneSnapshot,
-      activeQuests
+      playerInput,
+      scene
     });
-    const prompt = `${systemPrompt}\n\n${userTurn}`;
+    const [firstReply] = groupChat.replies;
 
-    const rawResponse = await generateNpcResponse(prompt, playerInput, npcId);
-    const npcResponse = validateLlmResponse(rawResponse);
-
-    applyStateDelta(scopedNpcId, npcResponse.state_delta);
-    const baseActionResult = executeIntent(scopedNpcId, npcResponse.intent);
-    const questResult = evaluateQuestIntent(sessionId, scopedNpcId, npcResponse.intent);
-
-    const personalityEvents = deriveEvents(npcResponse.intent, npcResponse.state_delta, questResult.statusChanges);
-    if (personalityEvents.length > 0) {
-      recordEvents(sessionId, npcId, personalityEvents);
-      evaluateRules(sessionId, npcId);
-    }
-
-    const actionResult = [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / ");
-
-    if (npcResponse.memory) {
-      await addMemory(scopedNpcId, npcResponse.memory);
+    if (!firstReply) {
+      throw new Error("NPC response missing");
     }
 
     const responseBody: ChatResponseBody = {
-      dialogue: npcResponse.dialogue,
-      tone: npcResponse.tone,
-      intent: npcResponse.intent,
-      state: getNpcState(scopedNpcId),
-      memoryAdded: npcResponse.memory,
-      actionResult,
-      player: resolvePlayer(sessionId)
+      dialogue: firstReply.dialogue,
+      tone: firstReply.tone,
+      intent: firstReply.intent,
+      state: firstReply.state,
+      memoryAdded: firstReply.memoryAdded,
+      actionResult: firstReply.actionResult,
+      player: resolvePlayer(sessionId),
+      replies: groupChat.replies,
+      groupChat: {
+        sceneId: activeSceneId,
+        speakerOrder: groupChat.speakerOrder,
+        ...(groupChat.partialFailure ? { partialFailure: true } : {})
+      }
     };
 
     res.json(responseBody);

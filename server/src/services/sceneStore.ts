@@ -1,5 +1,6 @@
 import { DEFAULT_SCENE_ID, getSceneDefinition, listScenes, sceneDefinitions } from "../data/scenes.js";
 import { getDb } from "../db/connection.js";
+import { generateDueBackgroundEvents, markPlayerEnteredScene, markPlayerLeftScene } from "./backgroundEvents.js";
 import { getNpcProfile, getNpcState } from "./gameState.js";
 import { scopedNpcId } from "./scopedNpcId.js";
 import type { SceneDefinition, SceneSnapshot } from "../types/scene.js";
@@ -34,6 +35,9 @@ export function setActiveSceneId(sessionId: string, sceneId: string): void {
     throw new Error(`Unknown scene: ${sceneId}`);
   }
 
+  const previousSceneId = getActiveSceneId(sessionId);
+  const now = new Date();
+
   getDb()
     .prepare(
       `INSERT INTO active_scene (session_id, scene_id, updated_at)
@@ -42,7 +46,16 @@ export function setActiveSceneId(sessionId: string, sceneId: string): void {
          scene_id = excluded.scene_id,
          updated_at = excluded.updated_at`
     )
-    .run(sessionId, sceneId, new Date().toISOString());
+    .run(sessionId, sceneId, now.toISOString());
+
+  if (previousSceneId !== sceneId) {
+    void generateDueBackgroundEvents({ sessionId, sceneId, now }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unknown background event error";
+      process.stderr.write(`Background event error: ${message}\n`);
+    });
+    markPlayerLeftScene({ sessionId, sceneId: previousSceneId, now });
+    markPlayerEnteredScene({ sessionId, sceneId, now });
+  }
 }
 
 export function getSceneSnapshot(sessionId: string, sceneId: string): SceneSnapshot | null {

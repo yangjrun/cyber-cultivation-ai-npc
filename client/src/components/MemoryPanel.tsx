@@ -1,13 +1,14 @@
 type MemoryPanelProps = {
   memories: string[];
+  npcName: string;
 };
 
-export function MemoryPanel({ memories }: MemoryPanelProps) {
+export function MemoryPanel({ memories, npcName }: MemoryPanelProps) {
   return (
     <section className="cyber-panel cyber-corner relative overflow-hidden p-4">
       <header className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-violet-200">
-          白璃的记忆
+          {npcName}的记忆
         </h2>
         <span className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
           local cache

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 export type ChatMessage = {
   id: string;
   speaker: "player" | "npc";
+  npcId?: string;
   name: string;
   text: string;
   tone?: string;
@@ -70,20 +71,21 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
 function ChatBubble({ message }: { message: ChatMessage }) {
   const isPlayer = message.speaker === "player";
   const intent = message.intentType && message.intentType !== "none" ? message.intentType : null;
+  const tone = getNpcTone(message.npcId);
 
   return (
     <article
       className={
         isPlayer
           ? "ml-10 rounded-xl border border-cyan-400/30 bg-cyan-500/5 p-3 text-right shadow-[0_0_18px_-12px_rgba(34,211,238,0.7)]"
-          : "mr-10 rounded-xl border border-violet-400/30 bg-violet-500/5 p-3 shadow-[0_0_18px_-12px_rgba(139,92,246,0.7)]"
+          : `mr-10 rounded-xl border p-3 shadow-[0_0_18px_-12px] ${tone.bubble}`
       }
     >
       <header
         className={
           isPlayer
             ? "mb-1 flex items-center justify-end gap-3 text-[10px] uppercase tracking-[0.3em] text-cyan-200"
-            : "mb-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] text-violet-200"
+            : `mb-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] ${tone.header}`
         }
       >
         <span>{message.name}</span>
@@ -95,7 +97,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           className={
             isPlayer
               ? "mb-1 text-[11px] text-cyan-300/80"
-              : "mb-1 text-[11px] text-rose-200/80"
+              : `mb-1 text-[11px] ${tone.meta}`
           }
         >
           语气：{message.tone}
@@ -113,10 +115,46 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       </p>
 
       {!isPlayer && intent ? (
-        <div className="mt-2 inline-flex items-center rounded-md border border-rose-400/40 bg-rose-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.3em] text-rose-200">
+        <div className={`mt-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-[0.3em] ${tone.intent}`}>
           intent: {intent}
         </div>
       ) : null}
     </article>
   );
+}
+
+function getNpcTone(npcId: string | undefined) {
+  if (npcId === "chimu") {
+    return {
+      bubble: "border-rose-400/30 bg-rose-500/5 shadow-rose-500/70",
+      header: "text-rose-200",
+      meta: "text-rose-200/80",
+      intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
+    };
+  }
+
+  if (npcId === "qinggu") {
+    return {
+      bubble: "border-amber-400/30 bg-amber-500/5 shadow-amber-500/70",
+      header: "text-amber-200",
+      meta: "text-amber-200/80",
+      intent: "border-amber-400/40 bg-amber-500/10 text-amber-200"
+    };
+  }
+
+  if (npcId === "suhe") {
+    return {
+      bubble: "border-emerald-400/30 bg-emerald-500/5 shadow-emerald-500/70",
+      header: "text-emerald-200",
+      meta: "text-emerald-200/80",
+      intent: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+    };
+  }
+
+  return {
+    bubble: "border-violet-400/30 bg-violet-500/5 shadow-violet-500/70",
+    header: "text-violet-200",
+    meta: "text-rose-200/80",
+    intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
+  };
 }

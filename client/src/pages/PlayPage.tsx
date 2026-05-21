@@ -170,7 +170,7 @@ export function PlayPage() {
           <InventoryPanel />
           <QuestLog />
           <StatePanel state={npcState} />
-          <MemoryPanel memories={memories} />
+          <MemoryPanel memories={memories} npcName={activeNpcName} />
           <ActionPanel actionResult={lastActionResult} intentType={lastIntent} />
           <SystemLogPanel logs={systemLogs} />
         </aside>

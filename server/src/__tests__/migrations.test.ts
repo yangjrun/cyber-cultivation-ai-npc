@@ -22,6 +22,7 @@ describe("migrations", () => {
       "npc_relations",
       "active_scene",
       "npc_personality",
+      "background_scene_events",
       "schema_migrations"
     ]));
 
@@ -37,7 +38,7 @@ describe("migrations", () => {
     const versions = (db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as Array<{ version: string }>)
       .map((row) => row.version);
 
-    expect(versions).toEqual(["001_init", "002_cultivation", "003_world", "004_personality"]);
+    expect(versions).toEqual(["001_init", "002_cultivation", "003_world", "004_personality", "005_background_events"]);
 
     db.close();
   });
@@ -56,16 +57,20 @@ describe("migrations", () => {
       .run(sessionId, "black_market", now);
     db.prepare("INSERT INTO npc_personality (session_id, base_npc_id, evolved_traits_json, counters_json, updated_at) VALUES (?, ?, ?, ?, ?)")
       .run(sessionId, "baili", "[]", "{}", now);
+    db.prepare("INSERT INTO background_scene_events (session_id, scene_id, player_absent_since, daily_count_date, daily_count) VALUES (?, ?, ?, ?, ?)")
+      .run(sessionId, "thunder_tavern", now, now.slice(0, 10), 1);
 
     db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 
     const quests = db.prepare("SELECT * FROM quest_progress WHERE session_id = ?").all(sessionId);
     const scenes = db.prepare("SELECT * FROM active_scene WHERE session_id = ?").all(sessionId);
     const personality = db.prepare("SELECT * FROM npc_personality WHERE session_id = ?").all(sessionId);
+    const backgroundEvents = db.prepare("SELECT * FROM background_scene_events WHERE session_id = ?").all(sessionId);
 
     expect(quests).toEqual([]);
     expect(scenes).toEqual([]);
     expect(personality).toEqual([]);
+    expect(backgroundEvents).toEqual([]);
 
     db.close();
   });

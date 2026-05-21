@@ -147,6 +147,57 @@ describe("PlayPage scene + NPC navigation", () => {
     });
   });
 
+  it("renders multiple NPC replies from one player message", async () => {
+    vi.stubGlobal("fetch", createFetchMock({
+      chatResponse: {
+        dialogue: "过路费，三十灵石。",
+        tone: "不耐烦",
+        intent: { type: "give_quest", params: { quest_id: "pay_thunder_toll" } },
+        state: { trust: 0, fear: 0, anger: 30, tianDaoAlert: 30 },
+        memoryAdded: "玩家试图通过赤目的卡口。",
+        actionResult: "接受任务：应付雷罚帮过路费",
+        player: mockPlayer,
+        replies: [
+          {
+            npcId: "chimu",
+            dialogue: "过路费，三十灵石。",
+            tone: "不耐烦",
+            intent: { type: "give_quest", params: { quest_id: "pay_thunder_toll" } },
+            state: { trust: 0, fear: 0, anger: 30, tianDaoAlert: 30 },
+            memoryAdded: "玩家试图通过赤目的卡口。",
+            actionResult: "接受任务：应付雷罚帮过路费"
+          },
+          {
+            npcId: "qinggu",
+            dialogue: "你不去验一验？",
+            tone: "勾人",
+            intent: { type: "give_quest", params: { quest_id: "verify_suhe_identity" } },
+            state: { trust: 12, fear: 5, anger: 0, tianDaoAlert: 25 },
+            memoryAdded: "玩家怀疑苏鹤的身份，青姑顺势卖了线索。",
+            actionResult: ""
+          }
+        ]
+      }
+    }));
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(await screen.findByRole("button", { name: "雷罚酒馆" }));
+    await waitFor(() => {
+      expect(useGameStore.getState().activeSceneId).toBe("thunder_tavern");
+    });
+    await user.type(screen.getByPlaceholderText(/向赤目开口/), "让我过");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("过路费，三十灵石。")).toBeInTheDocument();
+      expect(screen.getByText("你不去验一验？")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText("赤目").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("青姑").length).toBeGreaterThan(0);
+    expect(useGameStore.getState().npcStates.qinggu).toEqual({ trust: 12, fear: 5, anger: 0, tianDaoAlert: 25 });
+  });
+
   it("renders quest log when quest data is loaded", async () => {
     vi.stubGlobal("fetch", createFetchMock({
       questsList: [
@@ -185,6 +236,7 @@ describe("PlayPage scene + NPC navigation", () => {
 
 type FetchOptions = {
   questsList?: unknown[];
+  chatResponse?: unknown;
 };
 
 function createFetchMock(options: FetchOptions = {}) {
@@ -216,8 +268,12 @@ function createFetchMock(options: FetchOptions = {}) {
       return jsonResponse({ quests: options.questsList ?? [] });
     }
 
-    if (url === "/api/chat/reset" || url === "/api/chat") {
+    if (url === "/api/chat/reset") {
       return jsonResponse({});
+    }
+
+    if (url === "/api/chat") {
+      return jsonResponse(options.chatResponse ?? {});
     }
 
     return jsonResponse({ error: "not found" }, 404);

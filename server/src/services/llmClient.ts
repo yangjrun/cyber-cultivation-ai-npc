@@ -1,43 +1,85 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { getMockResponder } from "./mockResponders/index.js";
+import type { LlmMessage, LlmTextBlock } from "../types/llm.js";
+
+type RequestLlmInput = {
+  messages: LlmMessage[];
+  playerInput: string;
+  npcId?: string;
+};
 
 export async function generateNpcResponse(prompt: string, playerInput: string, npcId: string = "baili"): Promise<string> {
+  return requestLlm({
+    messages: [
+      {
+        role: "system",
+        content: prompt
+      }
+    ],
+    playerInput,
+    npcId
+  });
+}
+
+export async function requestLlm({ messages, playerInput, npcId = "baili" }: RequestLlmInput): Promise<string> {
   if (!process.env.LLM_API_KEY) {
     return JSON.stringify(getMockResponder(npcId)(playerInput));
   }
 
-  const baseUrl = process.env.LLM_BASE_URL?.replace(/\/$/, "");
   const model = process.env.LLM_MODEL;
 
-  if (!baseUrl || !model) {
-    throw new Error("LLM_BASE_URL and LLM_MODEL are required when LLM_API_KEY is set");
+  if (!model) {
+    throw new Error("LLM_MODEL is required when LLM_API_KEY is set");
   }
 
-  const response = await requestLlm(baseUrl, model, prompt);
+  const apiFormat = process.env.LLM_API_FORMAT === "claude" ? "claude" : "openai";
 
-  if (!response.ok) {
-    throw new Error(`LLM request failed with status ${response.status}`);
-  }
-
-  const payload = await response.json() as unknown;
-  const content = extractMessageContent(payload);
-
-  if (!content) {
-    throw new Error("LLM response did not include message content");
-  }
-
-  return content;
+  return apiFormat === "claude"
+    ? requestClaudeMessages(model, messages)
+    : requestOpenAiCompatible(model, messages);
 }
 
-async function requestLlm(baseUrl: string, model: string, prompt: string): Promise<Response> {
+async function requestOpenAiCompatible(model: string, messages: LlmMessage[]): Promise<string> {
+  const baseUrl = process.env.LLM_BASE_URL?.replace(/\/$/, "");
+
+  if (!baseUrl) {
+    throw new Error("LLM_BASE_URL is required for OpenAI-compatible LLM requests");
+  }
+
   const controller = new AbortController();
   const timeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 15000);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const apiFormat = process.env.LLM_API_FORMAT === "claude" ? "claude" : "openai";
-    return apiFormat === "claude"
-      ? await requestClaudeMessages(baseUrl, model, prompt, controller.signal)
-      : await requestOpenAiCompatible(baseUrl, model, prompt, controller.signal);
+    const response = await fetch(resolveEndpoint(baseUrl, "/chat/completions"), {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.LLM_API_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: messages.map((message) => ({
+          role: message.role,
+          content: stringifyContent(message.content)
+        })),
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM request failed with status ${response.status}`);
+    }
+
+    const payload = await response.json() as unknown;
+    const content = extractOpenAiMessageContent(payload);
+
+    if (!content) {
+      throw new Error("LLM response did not include message content");
+    }
+
+    return content;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error("LLM request timed out");
@@ -49,50 +91,71 @@ async function requestLlm(baseUrl: string, model: string, prompt: string): Promi
   }
 }
 
-async function requestOpenAiCompatible(baseUrl: string, model: string, prompt: string, signal: AbortSignal): Promise<Response> {
-  return fetch(resolveEndpoint(baseUrl, "/chat/completions"), {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.LLM_API_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content: prompt
-        }
-      ],
-      temperature: 0.7
-    })
-  });
-}
-
-async function requestClaudeMessages(baseUrl: string, model: string, prompt: string, signal: AbortSignal): Promise<Response> {
-  return fetch(resolveEndpoint(baseUrl, "/messages"), {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": process.env.LLM_API_KEY ?? "",
+async function requestClaudeMessages(model: string, messages: LlmMessage[]): Promise<string> {
+  const client = new Anthropic({
+    apiKey: process.env.LLM_API_KEY,
+    authToken: null,
+    baseURL: resolveClaudeBaseUrl(process.env.LLM_BASE_URL),
+    timeout: Number(process.env.LLM_TIMEOUT_MS ?? 15000),
+    maxRetries: 0,
+    defaultHeaders: {
       "anthropic-version": process.env.ANTHROPIC_VERSION ?? "2023-06-01"
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 512,
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
-    })
+    }
   });
+  const response = await client.messages.create({
+    model,
+    max_tokens: 512,
+    system: toClaudeSystem(messages),
+    messages: toClaudeMessages(messages)
+  });
+  const content = extractClaudeMessageContent(response);
+
+  if (!content) {
+    throw new Error("LLM response did not include message content");
+  }
+
+  return content;
 }
 
-function resolveEndpoint(baseUrl: string, path: "/chat/completions" | "/messages"): string {
+function toClaudeSystem(messages: LlmMessage[]): Anthropic.TextBlockParam[] | undefined {
+  const blocks = messages
+    .filter((message) => message.role === "system")
+    .flatMap((message) => toClaudeTextBlocks(message.content));
+
+  return blocks.length > 0 ? blocks : undefined;
+}
+
+function toClaudeMessages(messages: LlmMessage[]): Anthropic.MessageParam[] {
+  const nonSystem = messages.filter((message) => message.role !== "system");
+
+  if (nonSystem.length === 0) {
+    return [
+      {
+        role: "user",
+        content: "继续。"
+      }
+    ];
+  }
+
+  return nonSystem.map((message) => ({
+    role: message.role === "assistant" ? "assistant" : "user",
+    content: typeof message.content === "string" ? message.content : toClaudeTextBlocks(message.content)
+  }));
+}
+
+function toClaudeTextBlocks(content: string | LlmTextBlock[]): Anthropic.TextBlockParam[] {
+  if (typeof content === "string") {
+    return [{ type: "text", text: content }];
+  }
+
+  return content.map((block) => ({
+    type: "text",
+    text: block.text,
+    ...(block.cacheControl ? { cache_control: block.cacheControl } : {})
+  }));
+}
+
+function resolveEndpoint(baseUrl: string, path: "/chat/completions"): string {
   if (baseUrl.endsWith(path)) {
     return baseUrl;
   }
@@ -104,14 +167,44 @@ function resolveEndpoint(baseUrl: string, path: "/chat/completions" | "/messages
   return `${baseUrl}/v1${path}`;
 }
 
-function extractMessageContent(payload: unknown): string | null {
-  const openAiContent = extractOpenAiMessageContent(payload);
-
-  if (openAiContent) {
-    return openAiContent;
+function resolveClaudeBaseUrl(baseUrl: string | undefined): string | undefined {
+  if (!baseUrl) {
+    return undefined;
   }
 
-  return extractClaudeMessageContent(payload);
+  const normalized = baseUrl.replace(/\/$/, "");
+
+  if (normalized.endsWith("/v1/messages")) {
+    return normalized.slice(0, -"/v1/messages".length);
+  }
+
+  if (normalized.endsWith("/v1")) {
+    return normalized.slice(0, -"/v1".length);
+  }
+
+  return normalized;
+}
+
+function extractClaudeMessageContent(response: unknown): string | null {
+  const payload = typeof response === "string" ? parseJson(response) : response;
+
+  if (!isRecord(payload) || !Array.isArray(payload.content)) {
+    return null;
+  }
+
+  const textBlocks = payload.content
+    .filter((block): block is Record<string, unknown> => isRecord(block) && block.type === "text" && typeof block.text === "string")
+    .map((block) => block.text as string);
+
+  return textBlocks.length > 0 ? textBlocks.join("\n") : null;
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function extractOpenAiMessageContent(payload: unknown): string | null {
@@ -128,16 +221,12 @@ function extractOpenAiMessageContent(payload: unknown): string | null {
   return choice.message.content;
 }
 
-function extractClaudeMessageContent(payload: unknown): string | null {
-  if (!isRecord(payload) || !Array.isArray(payload.content)) {
-    return null;
+function stringifyContent(content: string | LlmTextBlock[]): string {
+  if (typeof content === "string") {
+    return content;
   }
 
-  const textBlocks = payload.content
-    .filter((block): block is Record<string, unknown> => isRecord(block) && block.type === "text" && typeof block.text === "string")
-    .map((block) => block.text as string);
-
-  return textBlocks.length > 0 ? textBlocks.join("\n") : null;
+  return content.map((block) => block.text).join("\n\n");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

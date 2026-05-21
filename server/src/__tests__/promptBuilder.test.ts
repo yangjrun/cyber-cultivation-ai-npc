@@ -3,7 +3,7 @@ import { resetGameState } from "../services/gameState.js";
 import { clearAllMemoriesForTests } from "../services/memoryStore.js";
 import { clearRelationsForTests } from "../services/npcRelationsStore.js";
 import { clearSessionsForTests, createSession, getPlayer } from "../services/playerStore.js";
-import { buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
+import { buildPromptMessages, buildSystemPrompt, buildUserTurn, mergeMemoriesForPrompt } from "../services/promptBuilder.js";
 import { clearQuestProgressForTests } from "../services/questStore.js";
 import { getSceneSnapshot } from "../services/sceneStore.js";
 import { scopedNpcId } from "../services/scopedNpcId.js";
@@ -53,6 +53,44 @@ describe("promptBuilder", () => {
 
     it("marks NPCs that do not give quests as 不派任务", () => {
       expect(buildSystemPrompt({ npcId: "suhe" })).toContain("不派任务");
+    });
+  });
+
+  describe("buildPromptMessages", () => {
+    it("keeps stable system content cacheable and moves evolved traits to dynamic context", () => {
+      const session = createSession();
+      const player = getPlayer(session.sessionId);
+
+      if (!player) throw new Error("Player missing");
+
+      const first = buildPromptMessages({
+        scopedNpcId: scopedNpcId(session.sessionId, "baili"),
+        npcId: "baili",
+        playerInput: "我想买药",
+        memories: ["玩家上次来过"],
+        player,
+        evolvedTraits: ["更容易信任玩家"]
+      });
+      const second = buildPromptMessages({
+        scopedNpcId: scopedNpcId(session.sessionId, "baili"),
+        npcId: "baili",
+        playerInput: "我想打听苏鹤",
+        memories: ["玩家提到监察院"],
+        player,
+        evolvedTraits: ["更警惕免费请求"]
+      });
+      const firstSystem = first[0].content;
+      const secondSystem = second[0].content;
+
+      if (typeof firstSystem === "string" || typeof secondSystem === "string") {
+        throw new Error("Expected structured system blocks");
+      }
+
+      expect(firstSystem[0].text).toBe(secondSystem[0].text);
+      expect(firstSystem[0].cacheControl).toEqual({ type: "ephemeral" });
+      expect(firstSystem[0].text).not.toContain("更容易信任玩家");
+      expect(first[1].content).toContain("更容易信任玩家");
+      expect(second[1].content).toContain("更警惕免费请求");
     });
   });
 
