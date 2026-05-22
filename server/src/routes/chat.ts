@@ -10,6 +10,7 @@ import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
 import { scopedNpcId as makeScopedNpcId } from "../services/scopedNpcId.js";
 import { validateChatRequest, validateResetRequest } from "../schemas/chat.js";
 import type { ChatReply, ChatResponseBody, InputMode } from "../types/chat.js";
+import type { NpcState } from "../types/npc.js";
 import type { PlayerState } from "../types/player.js";
 
 const NARRATOR_NPC_ID = "narrator";
@@ -71,6 +72,40 @@ chatRouter.post("/", async (req, res, next) => {
         playerInput,
         scene
       });
+
+      if (groupChat.replies.length === 0) {
+        const silenceReply: ChatReply = {
+          npcId: NARRATOR_NPC_ID,
+          dialogue: "场内一片安静，只有义体风铃在响。",
+          tone: "环境",
+          intent: { type: "none", params: {} },
+          state: { ...EMPTY_NPC_STATE },
+          memoryAdded: "",
+          actionResult: "",
+          kind: "dialogue"
+        };
+
+        const silenceBody: ChatResponseBody = {
+          dialogue: silenceReply.dialogue,
+          tone: silenceReply.tone,
+          intent: silenceReply.intent,
+          state: silenceReply.state,
+          memoryAdded: silenceReply.memoryAdded,
+          actionResult: silenceReply.actionResult,
+          player,
+          replies: [silenceReply],
+          mode,
+          groupChat: {
+            sceneId: activeSceneId,
+            speakerOrder: [NARRATOR_NPC_ID],
+            ...(groupChat.arbiterRationale ? { arbiterRationale: groupChat.arbiterRationale } : {})
+          }
+        };
+
+        res.json(silenceBody);
+        return;
+      }
+
       const [firstReply] = groupChat.replies;
 
       if (!firstReply) {
@@ -90,7 +125,8 @@ chatRouter.post("/", async (req, res, next) => {
         groupChat: {
           sceneId: activeSceneId,
           speakerOrder: groupChat.speakerOrder,
-          ...(groupChat.partialFailure ? { partialFailure: true } : {})
+          ...(groupChat.partialFailure ? { partialFailure: true } : {}),
+          ...(groupChat.arbiterRationale ? { arbiterRationale: groupChat.arbiterRationale } : {})
         }
       };
 
@@ -100,13 +136,20 @@ chatRouter.post("/", async (req, res, next) => {
 
     const scopedNpcId = makeScopedNpcId(sessionId, npcId);
     let narrationText = playerInput;
+    let affectedStates: Record<string, NpcState> | undefined;
 
     if (mode === "monologue") {
       const echoResult = await echoMonologue({ sessionId, playerInput, scene });
       narrationText = echoResult.narration;
+      if (Object.keys(echoResult.affectedStates).length > 0) {
+        affectedStates = echoResult.affectedStates;
+      }
     } else if (mode === "action") {
       const actionResult = await resolveAction({ sessionId, playerInput, scene });
       narrationText = actionResult.narration;
+      if (Object.keys(actionResult.affectedStates).length > 0) {
+        affectedStates = actionResult.affectedStates;
+      }
     }
 
     const narratorReply: ChatReply = {
@@ -117,7 +160,8 @@ chatRouter.post("/", async (req, res, next) => {
       state: getNpcState(scopedNpcId) ?? { ...EMPTY_NPC_STATE },
       memoryAdded: "",
       actionResult: "",
-      kind: mode
+      kind: mode,
+      ...(affectedStates ? { affectedStates } : {})
     };
 
     const responseBody: ChatResponseBody = {

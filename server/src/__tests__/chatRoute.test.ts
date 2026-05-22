@@ -61,7 +61,8 @@ describe("POST /api/chat", () => {
         memoryAdded: "玩家想要躲避监察院扫描的丹药。"
       })
     ]);
-    expect(response.body.groupChat).toEqual({ sceneId: "black_market", speakerOrder: ["baili"] });
+    expect(response.body.groupChat).toMatchObject({ sceneId: "black_market", speakerOrder: ["baili"] });
+    expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
     expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(["玩家想要躲避监察院扫描的丹药。"]);
   });
 
@@ -176,7 +177,8 @@ describe("POST /api/chat", () => {
         actionResult: ""
       })
     );
-    expect(response.body.groupChat).toEqual({ sceneId: "thunder_tavern", speakerOrder: ["chimu", "qinggu"] });
+    expect(response.body.groupChat).toMatchObject({ sceneId: "thunder_tavern", speakerOrder: ["chimu", "qinggu"] });
+    expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
     expect(getRecentMemories(`${sessionId}::chimu`, 5)).toEqual(["玩家试图通过赤目的卡口。"]);
     expect(getRecentMemories(`${sessionId}::qinggu`, 5)).toEqual(["玩家怀疑苏鹤的身份，青姑顺势卖了线索。"]);
   });
@@ -259,6 +261,32 @@ describe("POST /api/chat", () => {
     expect(getNpcState(`${sessionId}::baili`).tianDaoAlert).toBe(stateBefore.tianDaoAlert);
   });
 
+  it("attacks named NPC: target anger rises and affectedStates returned", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+    await request(app)
+      .post("/api/scenes/switch")
+      .send({ sessionId, sceneId: "thunder_tavern" })
+      .expect(200);
+
+    const chimuBefore = getNpcState(`${sessionId}::chimu`);
+    const qingguBefore = getNpcState(`${sessionId}::qinggu`);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "一记重拳打向赤目", npcId: "chimu", sessionId, inputMode: "action" })
+      .expect(200);
+
+    expect(response.body.mode).toBe("action");
+    expect(response.body.replies[0].dialogue).toContain("出手");
+    expect(response.body.replies[0].affectedStates).toBeDefined();
+    expect(response.body.replies[0].affectedStates.chimu.anger).toBeGreaterThan(chimuBefore.anger);
+    expect(response.body.replies[0].affectedStates.qinggu.tianDaoAlert).toBeGreaterThan(qingguBefore.tianDaoAlert);
+
+    const chimuAfter = getNpcState(`${sessionId}::chimu`);
+    expect(chimuAfter.anger).toBeGreaterThan(chimuBefore.anger);
+  });
+
   it("returns a narrator reply for monologue mode without calling the LLM", async () => {
     const app = createApp();
     const sessionId = await createTestSession(app);
@@ -296,6 +324,31 @@ describe("POST /api/chat", () => {
 
     const memory = getRecentMemories(`${sessionId}::baili`, 5);
     expect(memory[memory.length - 1]).toContain("非法");
+  });
+
+  it("returns silence narrator bubble when arbiter decides nobody speaks", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    await request(app)
+      .post("/api/scenes/switch")
+      .send({ sessionId, sceneId: "thunder_tavern" })
+      .expect(200);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "都给我滚远点", npcId: "chimu", sessionId })
+      .expect(200);
+
+    expect(response.body.mode).toBe("dialogue");
+    expect(response.body.replies).toHaveLength(1);
+    expect(response.body.replies[0]).toMatchObject({
+      npcId: "narrator",
+      kind: "dialogue",
+      tone: "环境"
+    });
+    expect(response.body.groupChat.speakerOrder).toEqual(["narrator"]);
+    expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
   });
 
   it("rejects unknown inputMode values", async () => {

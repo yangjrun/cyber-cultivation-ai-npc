@@ -3,6 +3,18 @@ import type { PlayerState } from "./player.js";
 
 export type InputMode = "dialogue" | "action" | "monologue";
 
+export type SpeakMode = "speak" | "interrupt" | "action_only" | "silent";
+
+export type ArbiterSpeaker = {
+  npcId: string;
+  mode: SpeakMode;
+};
+
+export type ArbiterDecision = {
+  speakers: ReadonlyArray<ArbiterSpeaker>;
+  rationale: string;
+};
+
 export type ChatRequestBody = {
   playerInput: string;
   npcId: string;
@@ -32,6 +44,8 @@ export type ChatReply = {
   memoryAdded: string;
   actionResult: string;
   kind: InputMode;
+  affectedStates?: Record<string, NpcState>;
+  speakMode?: SpeakMode;
 };
 
 export type ChatResponseBody = {
@@ -48,6 +62,7 @@ export type ChatResponseBody = {
     sceneId: string;
     speakerOrder: string[];
     partialFailure?: boolean;
+    arbiterRationale?: string;
   };
 };
 

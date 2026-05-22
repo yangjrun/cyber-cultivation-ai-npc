@@ -1,14 +1,16 @@
 import { processNpcTurn } from "./npcTurnProcessor.js";
+import { arbitrateTurn } from "./turnArbiter.js";
+import { getLastSpokeTurns, recordSpeakers } from "./speakerLog.js";
+import { getAllNpcStatesForSession } from "./gameState.js";
 import type { ChatReply } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
 import type { SceneSnapshot } from "../types/scene.js";
-
-const DEFAULT_MAX_REPLIES = 2;
 
 export type GroupChatResult = {
   replies: ChatReply[];
   speakerOrder: string[];
   partialFailure: boolean;
+  arbiterRationale: string;
 };
 
 export type OrchestrateGroupChatInput = {
@@ -17,7 +19,6 @@ export type OrchestrateGroupChatInput = {
   player: PlayerState;
   playerInput: string;
   scene?: SceneSnapshot;
-  maxReplies?: number;
 };
 
 export async function orchestrateGroupChatTurn({
@@ -25,25 +26,46 @@ export async function orchestrateGroupChatTurn({
   targetNpcId,
   player,
   playerInput,
-  scene,
-  maxReplies = DEFAULT_MAX_REPLIES
+  scene
 }: OrchestrateGroupChatInput): Promise<GroupChatResult> {
-  const speakers = selectSpeakers(scene, targetNpcId, maxReplies);
+  const npcStates = getAllNpcStatesForSession(sessionId);
+  const lastSpokeTurns = getLastSpokeTurns(sessionId);
+  const decision = await arbitrateTurn({
+    targetNpcId,
+    playerInput,
+    scene,
+    npcStates,
+    lastSpokeTurns
+  });
+
+  if (decision.speakers.length === 0) {
+    return {
+      replies: [],
+      speakerOrder: [],
+      partialFailure: false,
+      arbiterRationale: decision.rationale
+    };
+  }
+
   const replies: ChatReply[] = [];
   let partialFailure = false;
 
-  for (const speaker of speakers) {
+  for (const speaker of decision.speakers) {
+    if (speaker.mode === "silent") {
+      continue;
+    }
+
     try {
       const reply = await processNpcTurn({
         sessionId,
-        npcId: speaker,
+        npcId: speaker.npcId,
         player,
         playerInput,
         scene,
         priorReplies: replies.map(({ npcId, dialogue }) => ({ npcId, dialogue })),
         applyActions: replies.length === 0
       });
-      replies.push(reply);
+      replies.push({ ...reply, speakMode: speaker.mode });
     } catch (error) {
       if (replies.length === 0) {
         throw error;
@@ -53,20 +75,14 @@ export async function orchestrateGroupChatTurn({
     }
   }
 
+  if (replies.length > 0) {
+    recordSpeakers(sessionId, replies.map((reply) => reply.npcId));
+  }
+
   return {
     replies,
     speakerOrder: replies.map((reply) => reply.npcId),
-    partialFailure
+    partialFailure,
+    arbiterRationale: decision.rationale
   };
-}
-
-function selectSpeakers(scene: SceneSnapshot | undefined, targetNpcId: string, maxReplies: number): string[] {
-  const limit = Math.max(1, Math.trunc(maxReplies));
-  const sceneNpcIds = scene?.scene.npcIds ?? [];
-
-  if (!sceneNpcIds.includes(targetNpcId)) {
-    return [targetNpcId];
-  }
-
-  return [targetNpcId, ...sceneNpcIds.filter((npcId) => npcId !== targetNpcId)].slice(0, limit);
 }

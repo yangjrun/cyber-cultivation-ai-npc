@@ -60,7 +60,7 @@ function parseModelOutput(rawText: string): unknown {
   }
 }
 
-function extractFirstJsonObject(rawText: string): string | null {
+export function extractFirstJsonObject(rawText: string): string | null {
   const start = rawText.indexOf("{");
 
   if (start === -1) {
