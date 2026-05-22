@@ -23,7 +23,8 @@ const chatRequestSchema = z.object({
     (value) => typeof value === "string" ? value.trim() : value,
     z.string("npcId 必须是字符串。").min(1, "npcId 必须是字符串。")
   ),
-  sessionId: sessionIdSchema
+  sessionId: sessionIdSchema,
+  inputMode: z.enum(["dialogue", "action", "monologue"]).optional()
 });
 
 const resetRequestSchema = z.object({

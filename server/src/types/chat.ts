@@ -1,10 +1,13 @@
 import type { NpcIntent, NpcState, NpcStateDelta } from "./npc.js";
 import type { PlayerState } from "./player.js";
 
+export type InputMode = "dialogue" | "action" | "monologue";
+
 export type ChatRequestBody = {
   playerInput: string;
   npcId: string;
   sessionId: string;
+  inputMode?: InputMode;
 };
 
 export type ResetRequestBody = {
@@ -28,6 +31,7 @@ export type ChatReply = {
   state: NpcState;
   memoryAdded: string;
   actionResult: string;
+  kind: InputMode;
 };
 
 export type ChatResponseBody = {
@@ -39,6 +43,7 @@ export type ChatResponseBody = {
   actionResult: string;
   player: PlayerState;
   replies: ChatReply[];
+  mode: InputMode;
   groupChat: {
     sceneId: string;
     speakerOrder: string[];

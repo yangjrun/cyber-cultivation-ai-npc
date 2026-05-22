@@ -221,6 +221,92 @@ describe("POST /api/chat", () => {
 
     expect(quests.body.quests[0].status).toBe("completed");
   });
+
+  it("defaults to dialogue mode and tags replies with kind", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "买", npcId: "baili", sessionId })
+      .expect(200);
+
+    expect(response.body.mode).toBe("dialogue");
+    expect(response.body.replies[0].kind).toBe("dialogue");
+  });
+
+  it("returns a narrator reply for action mode without calling the LLM", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+    const stateBefore = getNpcState(`${sessionId}::baili`);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "偷摸过去", npcId: "baili", sessionId, inputMode: "action" })
+      .expect(200);
+
+    expect(response.body.mode).toBe("action");
+    expect(response.body.replies).toHaveLength(1);
+    expect(response.body.replies[0]).toMatchObject({
+      npcId: "narrator",
+      kind: "action",
+      intent: { type: "none", params: {} }
+    });
+    expect(response.body.replies[0].dialogue).toContain("潜行");
+    expect(response.body.groupChat).toEqual({ sceneId: "black_market", speakerOrder: ["narrator"] });
+
+    const memory = getRecentMemories(`${sessionId}::baili`, 5);
+    expect(memory[memory.length - 1]).toContain("偷摸过去");
+    expect(getNpcState(`${sessionId}::baili`).tianDaoAlert).toBe(stateBefore.tianDaoAlert);
+  });
+
+  it("returns a narrator reply for monologue mode without calling the LLM", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+    const memoryBefore = getRecentMemories(`${sessionId}::baili`, 5);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "完蛋，给发现了。", npcId: "baili", sessionId, inputMode: "monologue" })
+      .expect(200);
+
+    expect(response.body.mode).toBe("monologue");
+    expect(response.body.replies).toHaveLength(1);
+    expect(response.body.replies[0]).toMatchObject({
+      npcId: "narrator",
+      kind: "monologue",
+      dialogue: "完蛋，给发现了。",
+      tone: "心声",
+      intent: { type: "none", params: {} }
+    });
+    expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(memoryBefore);
+  });
+
+  it("raises tianDaoAlert on monologue when forbidden keywords appear", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+    const stateBefore = getNpcState(`${sessionId}::baili`);
+
+    await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "我有非法芯片", npcId: "baili", sessionId, inputMode: "monologue" })
+      .expect(200);
+
+    const stateAfter = getNpcState(`${sessionId}::baili`);
+    expect(stateAfter.tianDaoAlert).toBeGreaterThan(stateBefore.tianDaoAlert);
+
+    const memory = getRecentMemories(`${sessionId}::baili`, 5);
+    expect(memory[memory.length - 1]).toContain("非法");
+  });
+
+  it("rejects unknown inputMode values", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "买", npcId: "baili", sessionId, inputMode: "shouting" })
+      .expect(400);
+  });
 });
 
 async function createTestSession(app: ReturnType<typeof createApp>): Promise<string> {

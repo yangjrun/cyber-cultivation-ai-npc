@@ -1,14 +1,19 @@
 import { Router, type Response } from "express";
-import { getNpcProfile, resetNpcState } from "../services/gameState.js";
+import { resolveAction } from "../services/actionResolver.js";
+import { getNpcProfile, getNpcState, resetNpcState } from "../services/gameState.js";
 import { orchestrateGroupChatTurn } from "../services/groupChatOrchestrator.js";
 import { clearMemories } from "../services/memoryStore.js";
+import { echoMonologue } from "../services/narratorEcho.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
 import { resetPersonality } from "../services/personalityEvolution.js";
 import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
 import { scopedNpcId as makeScopedNpcId } from "../services/scopedNpcId.js";
 import { validateChatRequest, validateResetRequest } from "../schemas/chat.js";
-import type { ChatResponseBody } from "../types/chat.js";
+import type { ChatReply, ChatResponseBody, InputMode } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
+
+const NARRATOR_NPC_ID = "narrator";
+const EMPTY_NPC_STATE = { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 } as const;
 
 export const chatRouter = Router();
 
@@ -47,7 +52,8 @@ chatRouter.post("/", async (req, res, next) => {
       return;
     }
 
-    const { playerInput, npcId, sessionId } = validation.body;
+    const { playerInput, npcId, sessionId, inputMode } = validation.body;
+    const mode: InputMode = inputMode ?? "dialogue";
 
     if (!isKnownNpc(npcId, res) || !isKnownSession(sessionId, res)) {
       return;
@@ -56,32 +62,77 @@ chatRouter.post("/", async (req, res, next) => {
     const player = resolvePlayer(sessionId);
     const activeSceneId = getActiveSceneId(sessionId);
     const scene = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
-    const groupChat = await orchestrateGroupChatTurn({
-      sessionId,
-      targetNpcId: npcId,
-      player,
-      playerInput,
-      scene
-    });
-    const [firstReply] = groupChat.replies;
 
-    if (!firstReply) {
-      throw new Error("NPC response missing");
+    if (mode === "dialogue") {
+      const groupChat = await orchestrateGroupChatTurn({
+        sessionId,
+        targetNpcId: npcId,
+        player,
+        playerInput,
+        scene
+      });
+      const [firstReply] = groupChat.replies;
+
+      if (!firstReply) {
+        throw new Error("NPC response missing");
+      }
+
+      const responseBody: ChatResponseBody = {
+        dialogue: firstReply.dialogue,
+        tone: firstReply.tone,
+        intent: firstReply.intent,
+        state: firstReply.state,
+        memoryAdded: firstReply.memoryAdded,
+        actionResult: firstReply.actionResult,
+        player: resolvePlayer(sessionId),
+        replies: groupChat.replies,
+        mode,
+        groupChat: {
+          sceneId: activeSceneId,
+          speakerOrder: groupChat.speakerOrder,
+          ...(groupChat.partialFailure ? { partialFailure: true } : {})
+        }
+      };
+
+      res.json(responseBody);
+      return;
     }
 
+    const scopedNpcId = makeScopedNpcId(sessionId, npcId);
+    let narrationText = playerInput;
+
+    if (mode === "monologue") {
+      const echoResult = await echoMonologue({ sessionId, playerInput, scene });
+      narrationText = echoResult.narration;
+    } else if (mode === "action") {
+      const actionResult = await resolveAction({ sessionId, playerInput, scene });
+      narrationText = actionResult.narration;
+    }
+
+    const narratorReply: ChatReply = {
+      npcId: NARRATOR_NPC_ID,
+      dialogue: narrationText,
+      tone: mode === "action" ? "旁白" : "心声",
+      intent: { type: "none", params: {} },
+      state: getNpcState(scopedNpcId) ?? { ...EMPTY_NPC_STATE },
+      memoryAdded: "",
+      actionResult: "",
+      kind: mode
+    };
+
     const responseBody: ChatResponseBody = {
-      dialogue: firstReply.dialogue,
-      tone: firstReply.tone,
-      intent: firstReply.intent,
-      state: firstReply.state,
-      memoryAdded: firstReply.memoryAdded,
-      actionResult: firstReply.actionResult,
-      player: resolvePlayer(sessionId),
-      replies: groupChat.replies,
+      dialogue: narratorReply.dialogue,
+      tone: narratorReply.tone,
+      intent: narratorReply.intent,
+      state: narratorReply.state,
+      memoryAdded: narratorReply.memoryAdded,
+      actionResult: narratorReply.actionResult,
+      player,
+      replies: [narratorReply],
+      mode,
       groupChat: {
         sceneId: activeSceneId,
-        speakerOrder: groupChat.speakerOrder,
-        ...(groupChat.partialFailure ? { partialFailure: true } : {})
+        speakerOrder: [NARRATOR_NPC_ID]
       }
     };
 
