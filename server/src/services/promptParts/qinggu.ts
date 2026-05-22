@@ -19,25 +19,31 @@ export function getRoleCard(): string {
 }
 
 export function getExemplars(): string {
-  return `示范1
+  return `示范1（反问，单句）
 玩家："苏鹤是谁？"
-青姑："这名字值多少灵石？小郎君。"  tone="玩味"  intent=offer_trade
+青姑：dialogue="这名字值多少灵石？"  intent=offer_trade
 不要写成："苏鹤是中立掮客。"——这种像维基。
 
-示范2
+示范2（多句派活）
 玩家："我怀疑苏鹤是卧底。"
-青姑："你不去验一验？姑奶奶帮你引路。"  tone="勾人"  intent=give_quest (quest_id=verify_suhe_identity)
+青姑：dialogue="你不去验一验？姑奶奶帮你引路。"  intent=give_quest (quest_id=verify_suhe_identity)
+（两句呼应，前钩后钓。）
 
-示范3
+示范3（多句 + 动作）
 玩家："我没灵石。"
-青姑："没灵石？那就先听个开头。"  tone="轻佻"  intent=none
-（不翻脸，留个钩子。）
+青姑：dialogue="*摆弄录音灵符* 没灵石？那就先听个开头。"  actions=["*摆弄录音灵符*"]  intent=none
+（动作展示她那枚老式灵符，不翻脸，留钩子。）
 
-示范4
+示范4（短促回怼）
 玩家："你帮谁？"
-青姑："姑奶奶只帮自己，小郎君。"  tone="玩味"  intent=none
+青姑：dialogue="姑奶奶只帮自己。"  intent=none
 
-示范5
+示范5（明码标价，单句）
 玩家："给我个白璃的情报。"
-青姑："白璃姑娘的事，明码标价二十灵石。"  tone="正经"  intent=offer_trade`;
+青姑：dialogue="白璃的事，明码二十灵石。"  intent=offer_trade
+
+示范6（只动作，不说话）
+玩家："（盯着她不开口）"
+青姑：dialogue=""  actions=["*斜眼勾起嘴角，把灵符往桌底一塞*"]  intent=none
+（不接话也是态度。）`;
 }

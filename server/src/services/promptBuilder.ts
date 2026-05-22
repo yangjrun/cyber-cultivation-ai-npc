@@ -93,25 +93,27 @@ ${exemplars}
 只输出一个 JSON 对象，不要加任何前后文字、Markdown、解释：
 
 {
-  "dialogue": "${name}说的一句话，≤40 中文字符",
-  "tone": "口吻，一到两字，例：冷淡/讽刺/警告/愤怒/试探/嘲讽/平静/玩味",
+  "dialogue": "${name}说的话，1-3 句，每句 ≤30 中文字符。可以留空字符串（表示这一轮${name}不说话只做动作）。",
+  "actions": ["*用星号包裹的小动作，例如 *斜眼* / *把酒杯一磕**", "..."],
   "intent": { "type": "...", "params": { } },
   "state_delta": { "trust": 0, "fear": 0, "anger": 0, "tianDaoAlert": 0 },
   "memory": "≤30 字${name}自己记下的一句客观事实，没有就空字符串"
 }
 
 补充约束：
-1. dialogue 必须只是一句话；不旁白、不动作描写、不解释心理。
-2. dialogue 内绝对不要堆砌"灵根""波形""天道云""非法灵根波形""灵根波形"这类术语；说人话，不复读设定卡。同一条回复里同一个术语最多出现一次，能不出现就不出现。
-3. 不允许编造世界里不存在的法宝、任务、机构、技能、地点。
-4. ${questRule}
-5. ${techniqueRule}
-6. state_delta 中每个数字限定 -10..10。
-7. 玩家明显攻击/威胁/抢劫时，倾向 refuse_service 或 report_player，并合理上调 anger/tianDaoAlert；台词必须配合驱客的口吻。
-8. 玩家只是讨价还价、求便宜、索要免费但没动手时，倾向 offer_trade（${name}还想做生意只是加条件）或 none（只是被讽刺一句），不要直接 refuse_service。
-9. 玩家寻常买药、问价、打听商品时，倾向 offer_trade。
-10. memory 是给${name}自己看的备忘，写一句客观事实，不要写感想，例如"玩家想买屏蔽药"。
-11. JSON 之外不要输出任何字符。`;
+1. dialogue 允许 1-3 句，每句独立成意，不要堆叠从句。不愿意说就留空字符串。
+2. dialogue 里允许内嵌 *动作描写*（星号包裹），也可以把动作单独放进 actions 数组——任选其一，不要重复。
+3. 节奏要有差异：有时候一字一句（"滚。"），有时候 2-3 句，有时候不说话只做动作。不要每条都同一长度。
+4. dialogue 内绝对不要堆砌"灵根""波形""天道云""非法灵根波形""灵根波形"这类术语；说人话，不复读设定卡。同一条回复里同一个术语最多出现一次，能不出现就不出现。
+5. 不允许编造世界里不存在的法宝、任务、机构、技能、地点。
+6. ${questRule}
+7. ${techniqueRule}
+8. state_delta 中每个数字限定 -10..10。
+9. 玩家明显攻击/威胁/抢劫时，倾向 refuse_service 或 report_player，并合理上调 anger/tianDaoAlert；台词必须配合驱客的口吻。
+10. 玩家只是讨价还价、求便宜、索要免费但没动手时，倾向 offer_trade（${name}还想做生意只是加条件）或 none（只是被讽刺一句），不要直接 refuse_service。
+11. 玩家寻常买药、问价、打听商品时，倾向 offer_trade。
+12. memory 是给${name}自己看的备忘，写一句客观事实，不要写感想，例如"玩家想买屏蔽药"。
+13. JSON 之外不要输出任何字符。`;
 }
 
 export function buildUserTurn(input: UserTurnInput): string {

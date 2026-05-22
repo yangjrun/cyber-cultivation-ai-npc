@@ -33,6 +33,7 @@ export type ValidatedNpcResponse = {
   intent: NpcIntent;
   state_delta: NpcStateDelta;
   memory: string;
+  actions?: string[];
 };
 
 export type ChatReply = {
@@ -44,6 +45,7 @@ export type ChatReply = {
   memoryAdded: string;
   actionResult: string;
   kind: InputMode;
+  actions: string[];
   affectedStates?: Record<string, NpcState>;
   speakMode?: SpeakMode;
 };

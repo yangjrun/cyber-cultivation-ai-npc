@@ -78,6 +78,7 @@ export async function processNpcTurn({
     state: getNpcState(scopedNpcId),
     memoryAdded: npcResponse.memory,
     actionResult: [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / "),
-    kind: "dialogue"
+    kind: "dialogue",
+    actions: npcResponse.actions ?? []
   };
 }

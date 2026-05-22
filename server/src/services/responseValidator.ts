@@ -17,7 +17,8 @@ export const fallbackResponse: ValidatedNpcResponse = {
     anger: 0,
     tianDaoAlert: 0
   },
-  memory: ""
+  memory: "",
+  actions: []
 };
 
 const allowedIntentSet = new Set<string>(allowedIntents);
@@ -31,10 +32,11 @@ export function validateLlmResponse(raw: string | object): ValidatedNpcResponse 
 
   return {
     dialogue: normalizeDialogue(parsed.dialogue),
-    tone: typeof parsed.tone === "string" && parsed.tone.trim() ? parsed.tone.trim() : fallbackResponse.tone,
+    tone: typeof parsed.tone === "string" && parsed.tone.trim() ? parsed.tone.trim() : "",
     intent: normalizeIntent(parsed.intent),
     state_delta: normalizeStateDelta(parsed.state_delta),
-    memory: normalizeMemory(parsed.memory)
+    memory: normalizeMemory(parsed.memory),
+    actions: normalizeActions(parsed.actions)
   };
 }
 
@@ -42,7 +44,8 @@ function createFallback(): ValidatedNpcResponse {
   return {
     ...fallbackResponse,
     intent: { ...fallbackResponse.intent, params: { ...fallbackResponse.intent.params } },
-    state_delta: { ...fallbackResponse.state_delta }
+    state_delta: { ...fallbackResponse.state_delta },
+    actions: []
   };
 }
 
@@ -114,15 +117,33 @@ function normalizeDialogue(value: unknown): string {
     return fallbackResponse.dialogue;
   }
 
-  const normalized = value.replace(/[\r\n\"“”'‘’]/g, "").replace(/\s+/g, " ").trim();
-  const safeDialogue = toSingleSentence(normalized || fallbackResponse.dialogue);
-  const chars = Array.from(safeDialogue);
+  const cleaned = value.replace(/[\r\n"“”'‘’]/g, "").replace(/\s+/g, " ").trim();
 
-  if (chars.length <= 40) {
-    return safeDialogue;
+  if (!cleaned) {
+    return "";
   }
 
-  return `${chars.slice(0, 40).join("")}…`;
+  const sentences = cleaned.split(/(?<=[。！？!?])/).filter((segment) => segment.trim()).slice(0, 3);
+  const finalSentences = sentences.length > 0 ? sentences : [cleaned];
+
+  return finalSentences
+    .map((sentence) => {
+      const chars = Array.from(sentence);
+      return chars.length <= 30 ? sentence : `${chars.slice(0, 30).join("")}…`;
+    })
+    .join("");
+}
+
+function normalizeActions(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 function normalizeIntent(value: unknown): NpcIntent {
@@ -185,17 +206,6 @@ function normalizeMemory(value: unknown): string {
   }
 
   return Array.from(value.replace(/[\r\n]/g, "").replace(/\s+/g, " ").trim()).slice(0, 60).join("");
-}
-
-function toSingleSentence(text: string): string {
-  const chars = Array.from(text);
-  const endingIndex = chars.findIndex((char) => ["。", "！", "？", "!", "?"].includes(char));
-
-  if (endingIndex === -1) {
-    return text;
-  }
-
-  return chars.slice(0, endingIndex + 1).join("");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

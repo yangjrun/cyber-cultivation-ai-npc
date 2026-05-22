@@ -8,6 +8,7 @@ export type ChatMessage = {
   name: string;
   text: string;
   tone?: string;
+  actions?: string[];
   intentType?: string;
   kind?: InputMode;
   timestamp: string;
@@ -98,15 +99,15 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         <span className="font-mono text-slate-500">{message.timestamp}</span>
       </header>
 
-      {message.tone ? (
+      {message.actions && message.actions.length > 0 ? (
         <div
           className={
             isPlayer
-              ? "mb-1 text-[11px] text-cyan-300/80"
-              : `mb-1 text-[11px] ${tone.meta}`
+              ? "mb-1 text-[12px] italic text-cyan-200/70"
+              : "mb-1 text-[12px] italic text-slate-400/85"
           }
         >
-          语气：{message.tone}
+          {message.actions.join("  ")}
         </div>
       ) : null}
 

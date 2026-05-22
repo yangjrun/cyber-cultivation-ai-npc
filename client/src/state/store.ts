@@ -190,7 +190,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         npcId: reply.npcId,
         name: reply.npcId === NARRATOR_NPC_ID ? buildNarratorLabel(reply.kind) : getNpcName(reply.npcId),
         text: reply.dialogue,
-        tone: reply.tone || undefined,
+        actions: reply.actions && reply.actions.length > 0 ? reply.actions : undefined,
         intentType: reply.intent.type,
         kind: reply.kind,
         timestamp: nowTime()
@@ -198,7 +198,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       set((state) => {
         const nextNpcStates = response.replies.reduce((acc, reply) => {
-          if (reply.npcId === NARRATOR_NPC_ID || !reply.state) {
+          if (reply.npcId === NARRATOR_NPC_ID) {
+            if (reply.affectedStates) {
+              return { ...acc, ...reply.affectedStates };
+            }
+            return acc;
+          }
+          if (!reply.state) {
             return acc;
           }
           return { ...acc, [reply.npcId]: reply.state };
@@ -223,6 +229,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       for (const reply of response.replies) {
         if (reply.npcId === NARRATOR_NPC_ID) {
           get().appendLog(`旁白：${reply.tone || "无声"}。`);
+          if (reply.affectedStates) {
+            for (const [npcId, npcState] of Object.entries(reply.affectedStates)) {
+              get().appendLog(`${getNpcName(npcId)} 状态变动：警戒${npcState.tianDaoAlert}・怒${npcState.anger}。`);
+            }
+          }
         } else {
           get().appendLog(`收到 ${getNpcName(reply.npcId)} 回复：tone=${reply.tone || "未知"}。`);
         }

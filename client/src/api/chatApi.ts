@@ -24,6 +24,8 @@ export type ChatReply = {
   memoryAdded: string;
   actionResult: string;
   kind: InputMode;
+  actions?: string[];
+  affectedStates?: Record<string, NpcState>;
 };
 
 export type ChatResponse = {
@@ -103,6 +105,8 @@ function normalizeReply(raw: unknown, fallbackNpcId: string, fallbackKind: Input
   const record = isRecord(raw) ? raw : {};
   const npcId = normalizeString(record.npcId) || fallbackNpcId;
   const kind = normalizeMode(record.kind, fallbackKind);
+  const affectedStates = normalizeAffectedStates(record.affectedStates);
+  const actions = normalizeActions(record.actions);
 
   return {
     npcId,
@@ -112,8 +116,39 @@ function normalizeReply(raw: unknown, fallbackNpcId: string, fallbackKind: Input
     state: normalizeState(record.state),
     memoryAdded: normalizeString(record.memoryAdded),
     actionResult: normalizeString(record.actionResult),
-    kind
+    kind,
+    ...(actions.length > 0 ? { actions } : {}),
+    ...(affectedStates ? { affectedStates } : {})
   };
+}
+
+function normalizeActions(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function normalizeAffectedStates(value: unknown): Record<string, NpcState> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const result: Record<string, NpcState> = {};
+
+  for (const [key, raw] of Object.entries(value)) {
+    const state = normalizeState(raw);
+    if (state) {
+      result[key] = state;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 function normalizeMode(value: unknown, fallback: InputMode = "dialogue"): InputMode {

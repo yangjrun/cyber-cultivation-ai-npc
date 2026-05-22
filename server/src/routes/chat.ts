@@ -82,7 +82,8 @@ chatRouter.post("/", async (req, res, next) => {
           state: { ...EMPTY_NPC_STATE },
           memoryAdded: "",
           actionResult: "",
-          kind: "dialogue"
+          kind: "dialogue",
+          actions: []
         };
 
         const silenceBody: ChatResponseBody = {
@@ -161,6 +162,7 @@ chatRouter.post("/", async (req, res, next) => {
       memoryAdded: "",
       actionResult: "",
       kind: mode,
+      actions: [],
       ...(affectedStates ? { affectedStates } : {})
     };
 

@@ -171,7 +171,7 @@ describe("POST /api/chat", () => {
     expect(response.body.replies[1]).toEqual(
       expect.objectContaining({
         npcId: "qinggu",
-        dialogue: "你不去验一验？",
+        dialogue: "你不去验一验？姑奶奶帮你引路。",
         state: { trust: 12, fear: 5, anger: 0, tianDaoAlert: 25 },
         memoryAdded: "玩家怀疑苏鹤的身份，青姑顺势卖了线索。",
         actionResult: ""

@@ -26,11 +26,12 @@ describe("responseValidator", () => {
       tone: "不耐烦",
       intent: { type: "none", params: {} },
       state_delta: { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 },
-      memory: ""
+      memory: "",
+      actions: []
     });
   });
 
-  it("normalizes dialogue and truncates overlong text", () => {
+  it("normalizes dialogue and truncates overlong sentence", () => {
     const result = validateLlmResponse(JSON.stringify({
       dialogue: ` \"${longDialogue}\"\n`,
       tone: "试探",
@@ -39,7 +40,7 @@ describe("responseValidator", () => {
       memory: ""
     }));
 
-    expect(Array.from(result.dialogue).length).toBe(41);
+    expect(Array.from(result.dialogue).length).toBe(31);
     expect(result.dialogue.endsWith("…")).toBe(true);
     expect(result.dialogue).not.toContain("\n");
     expect(result.dialogue).not.toContain("\"");
@@ -89,6 +90,30 @@ describe("responseValidator", () => {
     expect(result.intent).toEqual({ type: "offer_trade", params: {} });
   });
 
+  it("preserves multiple short sentences without truncating", () => {
+    const result = validateLlmResponse(JSON.stringify({
+      dialogue: "出去。这价不对。砍三成。",
+      intent: { type: "offer_trade", params: {} },
+      state_delta: { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 },
+      memory: ""
+    }));
+
+    expect(result.dialogue).toBe("出去。这价不对。砍三成。");
+  });
+
+  it("captures actions array and trims to at most three entries", () => {
+    const result = validateLlmResponse(JSON.stringify({
+      dialogue: "",
+      actions: ["*斜眼*", "*敲丹炉*", " ", "*转身*", "*再瞥一眼*"],
+      intent: { type: "none", params: {} },
+      state_delta: { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 },
+      memory: ""
+    }));
+
+    expect(result.actions).toEqual(["*斜眼*", "*敲丹炉*", "*转身*"]);
+    expect(result.dialogue).toBe("");
+  });
+
   it("clamps state deltas and truncates memory", () => {
     const result = validateLlmResponse(JSON.stringify({
       dialogue: "规矩懂吗？",
@@ -98,7 +123,7 @@ describe("responseValidator", () => {
       memory: "玩家说了很多很多很多很多很多很多很多很多很多很多很多很多很多很多很多很多很多内容。"
     }));
 
-    expect(result.tone).toBe("不耐烦");
+    expect(result.tone).toBe("");
     expect(result.state_delta).toEqual({ trust: 10, fear: -10, anger: 0, tianDaoAlert: 7 });
     expect(Array.from(result.memory).length).toBeLessThanOrEqual(60);
   });

@@ -18,26 +18,33 @@ export function getRoleCard(): string {
 }
 
 export function getExemplars(): string {
-  return `示范1
+  return `示范1（单字暴击）
+玩家："让我赊账过去。"
+赤目：dialogue="滚。"  intent=refuse_service
+（一个字。比"不赊"凶十倍。）
+
+示范2（标准派活）
 玩家："让我过去。"
-赤目："过路费，三十灵石。"  tone="不耐烦"  intent=give_quest (quest_id=pay_thunder_toll)
+赤目：dialogue="过路费，三十灵石。"  intent=give_quest (quest_id=pay_thunder_toll)
 不要写成："请支付过路费用三十枚灵石。"——这种像收银台。
 
-示范2
+示范3（多句 + 动作）
 玩家："我没钱。"
-赤目："没钱？那就扣家伙。"  tone="冷笑"  intent=refuse_service
+赤目：dialogue="*抬手按住腰间雷罚锤* 没钱？扣家伙。"  actions=["*抬手按住腰间雷罚锤*"]  intent=refuse_service
+（动作把威胁感拉满，台词反而更短。）
 
-示范3
+示范4（嘲讽，单句）
 玩家："我是白璃的人。"
-赤目："白璃？她也得交。"  tone="嘲讽"  intent=none
+赤目：dialogue="她也得交。"  intent=none
 （不软，不通融，但也没动手。）
 
-示范4
+示范5（多句 + 暗里告状）
 玩家："我直接动手了。"
-赤目："你右臂的玩意儿藏不住。"  tone="挑衅"  intent=report_player
-（义体眼看穿非法灵根，暗里告状。）
+赤目：dialogue="你右臂的玩意儿。藏不住。"  intent=report_player
+（义体眼看穿非法灵根，两个短句拉出停顿。）
 
-示范5
-玩家："以后罩着我点。"
-赤目："雷罚帮不收散修。"  tone="平静"  intent=none`;
+示范6（只眯眼，不说话）
+玩家："（站在原地不动）"
+赤目：dialogue=""  actions=["*眯眼盯着你右臂三秒*"]  intent=none
+（沉默的威胁。一字不说也是回应。）`;
 }

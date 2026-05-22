@@ -139,7 +139,6 @@ describe("App", () => {
       sessionId: "session-1",
       inputMode: "dialogue"
     }));
-    expect(screen.getByText("语气：试探")).toBeInTheDocument();
     expect(screen.getByText("玩家想要躲避监察院扫描的丹药。")).toBeInTheDocument();
     expect(screen.getAllByText(/接受任务：偷一枚监察密钥/).length).toBeGreaterThan(0);
   });
