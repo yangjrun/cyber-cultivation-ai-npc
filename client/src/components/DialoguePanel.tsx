@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
+import type { InputMode } from "../api/chatApi";
 
 export type ChatMessage = {
   id: string;
-  speaker: "player" | "npc";
+  speaker: "player" | "npc" | "narrator";
   npcId?: string;
   name: string;
   text: string;
   tone?: string;
   intentType?: string;
+  kind?: InputMode;
   timestamp: string;
 };
 
@@ -69,6 +71,10 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
 }
 
 function ChatBubble({ message }: { message: ChatMessage }) {
+  if (message.speaker === "narrator") {
+    return <NarratorBubble message={message} />;
+  }
+
   const isPlayer = message.speaker === "player";
   const intent = message.intentType && message.intentType !== "none" ? message.intentType : null;
   const tone = getNpcTone(message.npcId);
@@ -121,6 +127,42 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       ) : null}
     </article>
   );
+}
+
+function NarratorBubble({ message }: { message: ChatMessage }) {
+  const style = getNarratorStyle(message.kind);
+
+  return (
+    <article
+      data-testid="narrator-bubble"
+      data-kind={message.kind ?? "action"}
+      className={`mx-12 rounded-xl border ${style.border} ${style.bg} p-3 text-center shadow-[0_0_18px_-12px]`}
+    >
+      <header className={`mb-1 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.3em] ${style.header}`}>
+        <span>{message.name}</span>
+        <span className="font-mono text-slate-500">{message.timestamp}</span>
+      </header>
+      <p className={`text-sm italic leading-6 ${style.text}`}>{message.text}</p>
+    </article>
+  );
+}
+
+function getNarratorStyle(kind: ChatMessage["kind"]) {
+  if (kind === "monologue") {
+    return {
+      border: "border-violet-400/30",
+      bg: "bg-violet-500/5",
+      header: "text-violet-200/80",
+      text: "text-violet-100/80"
+    };
+  }
+
+  return {
+    border: "border-rose-400/30",
+    bg: "bg-rose-500/5",
+    header: "text-rose-200/80",
+    text: "text-rose-100"
+  };
 }
 
 function getNpcTone(npcId: string | undefined) {

@@ -136,7 +136,8 @@ describe("App", () => {
     expect(chatCall?.[1]?.body).toBe(JSON.stringify({
       playerInput: "我需要躲过监察院扫描的丹药。",
       npcId: "baili",
-      sessionId: "session-1"
+      sessionId: "session-1",
+      inputMode: "dialogue"
     }));
     expect(screen.getByText("语气：试探")).toBeInTheDocument();
     expect(screen.getByText("玩家想要躲避监察院扫描的丹药。")).toBeInTheDocument();

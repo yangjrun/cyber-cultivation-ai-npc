@@ -232,6 +232,108 @@ describe("PlayPage scene + NPC navigation", () => {
       expect(screen.getByText("印证苏鹤的身份")).toBeInTheDocument();
     });
   });
+
+  it("sends inputMode=action and renders a narrator bubble for action mode", async () => {
+    const fetchMock = createFetchMock({
+      chatResponse: {
+        mode: "action",
+        dialogue: "（潜行：偷摸过去）",
+        tone: "旁白",
+        intent: { type: "none", params: {} },
+        state: null,
+        memoryAdded: "",
+        actionResult: "",
+        player: mockPlayer,
+        replies: [
+          {
+            npcId: "narrator",
+            dialogue: "（潜行：偷摸过去）",
+            tone: "旁白",
+            intent: { type: "none", params: {} },
+            state: null,
+            memoryAdded: "",
+            actionResult: "",
+            kind: "action"
+          }
+        ],
+        groupChat: { sceneId: "black_market", speakerOrder: ["narrator"] }
+      }
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    renderApp();
+
+    await waitFor(() => {
+      expect(useGameStore.getState().sessionId).toBe("session-1");
+    });
+
+    await user.click(screen.getByRole("radio", { name: /动作模式/ }));
+    const textarea = screen.getByPlaceholderText(/描述一个动作/);
+    await user.type(textarea, "偷摸过去");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("narrator-bubble")).toBeInTheDocument();
+    });
+
+    const bubble = screen.getByTestId("narrator-bubble");
+    expect(bubble).toHaveAttribute("data-kind", "action");
+    expect(bubble).toHaveTextContent("旁白");
+    expect(bubble).toHaveTextContent("（潜行：偷摸过去）");
+
+    const chatCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/chat");
+    const body = JSON.parse(String(chatCall?.[1]?.body ?? "{}")) as Record<string, unknown>;
+    expect(body.inputMode).toBe("action");
+  });
+
+  it("renders a violet monologue bubble for monologue mode", async () => {
+    vi.stubGlobal("fetch", createFetchMock({
+      chatResponse: {
+        mode: "monologue",
+        dialogue: "完蛋",
+        tone: "心声",
+        intent: { type: "none", params: {} },
+        state: null,
+        memoryAdded: "",
+        actionResult: "",
+        player: mockPlayer,
+        replies: [
+          {
+            npcId: "narrator",
+            dialogue: "完蛋",
+            tone: "心声",
+            intent: { type: "none", params: {} },
+            state: null,
+            memoryAdded: "",
+            actionResult: "",
+            kind: "monologue"
+          }
+        ],
+        groupChat: { sceneId: "black_market", speakerOrder: ["narrator"] }
+      }
+    }));
+
+    const user = userEvent.setup();
+    renderApp();
+
+    await waitFor(() => {
+      expect(useGameStore.getState().sessionId).toBe("session-1");
+    });
+
+    await user.click(screen.getByRole("radio", { name: /心声模式/ }));
+    const textarea = screen.getByPlaceholderText(/心声闪过/);
+    await user.type(textarea, "完蛋");
+    await user.click(screen.getByRole("button", { name: "发送" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("narrator-bubble")).toBeInTheDocument();
+    });
+
+    const bubble = screen.getByTestId("narrator-bubble");
+    expect(bubble).toHaveAttribute("data-kind", "monologue");
+    expect(bubble).toHaveTextContent("心声");
+  });
 });
 
 type FetchOptions = {

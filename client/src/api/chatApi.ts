@@ -1,6 +1,8 @@
 import { fetchJsonWithRetry } from "./apiClient";
 import { defaultPlayer, normalizePlayer, type PlayerState } from "./sessionApi";
 
+export type InputMode = "dialogue" | "action" | "monologue";
+
 export type NpcState = {
   trust: number;
   fear: number;
@@ -21,6 +23,7 @@ export type ChatReply = {
   state: NpcState | null;
   memoryAdded: string;
   actionResult: string;
+  kind: InputMode;
 };
 
 export type ChatResponse = {
@@ -32,11 +35,18 @@ export type ChatResponse = {
   actionResult: string;
   player: PlayerState;
   replies: ChatReply[];
+  mode: InputMode;
 };
 
 const DEFAULT_DIALOGUE = "……丹炉的蓝火沉默了一瞬。";
+const VALID_MODES: InputMode[] = ["dialogue", "action", "monologue"];
 
-export async function sendChat(playerInput: string, npcId: string, sessionId?: string): Promise<ChatResponse> {
+export async function sendChat(
+  playerInput: string,
+  npcId: string,
+  sessionId?: string,
+  inputMode?: InputMode
+): Promise<ChatResponse> {
   const raw = await fetchJsonWithRetry("/api/chat", {
     method: "POST",
     headers: {
@@ -45,7 +55,8 @@ export async function sendChat(playerInput: string, npcId: string, sessionId?: s
     body: JSON.stringify({
       playerInput,
       npcId,
-      ...(sessionId ? { sessionId } : {})
+      ...(sessionId ? { sessionId } : {}),
+      ...(inputMode ? { inputMode } : {})
     })
   });
 
@@ -67,9 +78,10 @@ export async function resetChat(npcId: string, sessionId?: string): Promise<void
 
 export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): ChatResponse {
   const record = isRecord(raw) ? raw : {};
-  const fallbackReply = normalizeReply(record, fallbackNpcId);
+  const mode = normalizeMode(record.mode);
+  const fallbackReply = normalizeReply(record, fallbackNpcId, mode);
   const replies = Array.isArray(record.replies)
-    ? record.replies.map((reply) => normalizeReply(reply, fallbackNpcId)).filter((reply) => reply.dialogue)
+    ? record.replies.map((reply) => normalizeReply(reply, fallbackNpcId, mode)).filter((reply) => reply.dialogue)
     : [];
   const normalizedReplies = replies.length > 0 ? replies : [fallbackReply];
   const [firstReply] = normalizedReplies;
@@ -82,13 +94,15 @@ export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): Ch
     memoryAdded: firstReply.memoryAdded,
     actionResult: firstReply.actionResult,
     player: normalizePlayer(record.player, defaultPlayer.sessionId, defaultPlayer.id),
-    replies: normalizedReplies
+    replies: normalizedReplies,
+    mode
   };
 }
 
-function normalizeReply(raw: unknown, fallbackNpcId: string): ChatReply {
+function normalizeReply(raw: unknown, fallbackNpcId: string, fallbackKind: InputMode): ChatReply {
   const record = isRecord(raw) ? raw : {};
   const npcId = normalizeString(record.npcId) || fallbackNpcId;
+  const kind = normalizeMode(record.kind, fallbackKind);
 
   return {
     npcId,
@@ -97,8 +111,15 @@ function normalizeReply(raw: unknown, fallbackNpcId: string): ChatReply {
     intent: normalizeIntent(record.intent),
     state: normalizeState(record.state),
     memoryAdded: normalizeString(record.memoryAdded),
-    actionResult: normalizeString(record.actionResult)
+    actionResult: normalizeString(record.actionResult),
+    kind
   };
+}
+
+function normalizeMode(value: unknown, fallback: InputMode = "dialogue"): InputMode {
+  return typeof value === "string" && VALID_MODES.includes(value as InputMode)
+    ? (value as InputMode)
+    : fallback;
 }
 
 function normalizeString(value: unknown): string {

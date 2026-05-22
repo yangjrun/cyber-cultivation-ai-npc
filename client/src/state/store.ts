@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { refineAlchemy, type MaterialSelection } from "../api/alchemyApi";
-import { resetChat, sendChat, type NpcState } from "../api/chatApi";
+import { resetChat, sendChat, type InputMode, type NpcState } from "../api/chatApi";
 import { breakthrough as requestBreakthrough, cultivate as requestCultivate } from "../api/cultivationApi";
 import { useInventoryItem } from "../api/inventoryApi";
 import { listQuests, type QuestProgress } from "../api/questApi";
@@ -13,6 +13,7 @@ const STORAGE_KEY = "cyber-cultivation.sessionId";
 const DEFAULT_NPC_ID = "baili";
 const DEFAULT_SCENE_ID = "black_market";
 const PLAYER_NAME = "陆玄";
+const NARRATOR_NPC_ID = "narrator";
 const MAX_LOGS = 5;
 const MAX_MEMORIES = 5;
 const ERROR_MESSAGE = "链路中断：无法连接 NPC。";
@@ -41,6 +42,7 @@ type GameState = {
   sessionLoading: boolean;
   activeSceneId: string;
   activeNpcId: string;
+  inputMode: InputMode;
   scenes: SceneDefinition[];
   scenesLoading: boolean;
   npcStates: Record<string, NpcStateSnapshot>;
@@ -66,6 +68,7 @@ type GameState = {
 type GameActions = {
   initializeSession: () => Promise<void>;
   setInput: (value: string) => void;
+  setInputMode: (mode: InputMode) => void;
   selectQuickPrompt: (value: string) => void;
   sendMessage: () => Promise<void>;
   resetDialogue: () => Promise<void>;
@@ -133,6 +136,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ input: clampInput(value) });
   },
 
+  setInputMode: (mode: InputMode) => {
+    if (mode !== get().inputMode) {
+      set({ inputMode: mode });
+    }
+  },
+
   selectQuickPrompt: (value: string) => {
     set({ input: clampInput(value) });
   },
@@ -150,6 +159,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const activeSessionId = get().sessionId;
     const activeNpcId = get().activeNpcId;
+    const activeMode = get().inputMode;
 
     if (!activeSessionId || !activeNpcId) {
       return;
@@ -160,6 +170,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       speaker: "player",
       name: PLAYER_NAME,
       text: trimmed,
+      kind: activeMode,
       timestamp: nowTime()
     };
 
@@ -169,30 +180,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
       loading: true,
       error: ""
     }));
-    get().appendLog("玩家发送灵识讯息。");
+    get().appendLog(buildSendLog(activeMode));
 
     try {
-      const response = await sendChat(trimmed, activeNpcId, activeSessionId);
+      const response = await sendChat(trimmed, activeNpcId, activeSessionId, activeMode);
       const npcMessages: ChatMessage[] = response.replies.map((reply) => ({
         id: uid(),
-        speaker: "npc",
+        speaker: reply.npcId === NARRATOR_NPC_ID ? "narrator" : "npc",
         npcId: reply.npcId,
-        name: getNpcName(reply.npcId),
+        name: reply.npcId === NARRATOR_NPC_ID ? buildNarratorLabel(reply.kind) : getNpcName(reply.npcId),
         text: reply.dialogue,
         tone: reply.tone || undefined,
         intentType: reply.intent.type,
+        kind: reply.kind,
         timestamp: nowTime()
       }));
 
       set((state) => {
-        const nextNpcStates = response.replies.reduce(
-          (acc, reply) => (reply.state ? { ...acc, [reply.npcId]: reply.state } : acc),
-          state.npcStates
-        );
-        const nextMemories = response.replies.reduce(
-          (acc, reply) => (reply.memoryAdded ? appendMemory(acc, reply.npcId, reply.memoryAdded) : acc),
-          state.memoriesByNpc
-        );
+        const nextNpcStates = response.replies.reduce((acc, reply) => {
+          if (reply.npcId === NARRATOR_NPC_ID || !reply.state) {
+            return acc;
+          }
+          return { ...acc, [reply.npcId]: reply.state };
+        }, state.npcStates);
+        const nextMemories = response.replies.reduce((acc, reply) => {
+          if (reply.npcId === NARRATOR_NPC_ID || !reply.memoryAdded) {
+            return acc;
+          }
+          return appendMemory(acc, reply.npcId, reply.memoryAdded);
+        }, state.memoriesByNpc);
 
         return {
           messagesByNpc: appendMessages(state.messagesByNpc, activeNpcId, npcMessages),
@@ -205,11 +221,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
 
       for (const reply of response.replies) {
-        get().appendLog(`收到 ${getNpcName(reply.npcId)} 回复：tone=${reply.tone || "未知"}。`);
+        if (reply.npcId === NARRATOR_NPC_ID) {
+          get().appendLog(`旁白：${reply.tone || "无声"}。`);
+        } else {
+          get().appendLog(`收到 ${getNpcName(reply.npcId)} 回复：tone=${reply.tone || "未知"}。`);
+        }
       }
       get().appendLog(`intent=${response.intent.type} 已校验。`);
 
-      if (response.replies.some((reply) => reply.memoryAdded)) {
+      if (response.replies.some((reply) => reply.npcId !== NARRATOR_NPC_ID && reply.memoryAdded)) {
         get().appendLog("记忆已写入。");
       }
 
@@ -447,6 +467,7 @@ function createInitialState(): GameState {
     sessionLoading: false,
     activeSceneId: DEFAULT_SCENE_ID,
     activeNpcId: DEFAULT_NPC_ID,
+    inputMode: "dialogue",
     scenes: [],
     scenesLoading: false,
     npcStates: {},
@@ -498,6 +519,26 @@ function appendMessages(map: Record<string, ChatMessage[]>, npcId: string, messa
 function appendMemory(map: Record<string, string[]>, npcId: string, memory: string): Record<string, string[]> {
   const current = map[npcId] ?? [];
   return { ...map, [npcId]: [...current, memory].slice(-MAX_MEMORIES) };
+}
+
+function buildSendLog(mode: InputMode): string {
+  if (mode === "action") {
+    return "玩家执行动作。";
+  }
+  if (mode === "monologue") {
+    return "玩家心声闪过。";
+  }
+  return "玩家发送灵识讯息。";
+}
+
+function buildNarratorLabel(mode: InputMode): string {
+  if (mode === "action") {
+    return "旁白";
+  }
+  if (mode === "monologue") {
+    return "心声";
+  }
+  return "旁白";
 }
 
 function readStoredSessionId(): string {

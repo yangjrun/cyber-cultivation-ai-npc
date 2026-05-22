@@ -4,6 +4,7 @@ import { ActionPanel } from "../components/ActionPanel";
 import { AlchemyModal } from "../components/AlchemyModal";
 import { CultivationPanel } from "../components/CultivationPanel";
 import { DialoguePanel } from "../components/DialoguePanel";
+import { InputModeSelector } from "../components/InputModeSelector";
 import { InventoryPanel } from "../components/InventoryPanel";
 import { MemoryPanel } from "../components/MemoryPanel";
 import { NpcListPanel } from "../components/NpcListPanel";
@@ -41,6 +42,7 @@ export function PlayPage() {
   const activeNpcId = useGameStore((state) => state.activeNpcId);
   const scenes = useGameStore((state) => state.scenes);
   const input = useGameStore((state) => state.input);
+  const inputMode = useGameStore((state) => state.inputMode);
   const loading = useGameStore((state) => state.loading);
   const error = useGameStore((state) => state.error);
   const lastActionResult = useGameStore((state) => state.lastActionResult);
@@ -50,6 +52,7 @@ export function PlayPage() {
   const memories = useGameStore(getActiveMemories);
   const npcState = useGameStore(getActiveNpcState);
   const setInput = useGameStore((state) => state.setInput);
+  const setInputMode = useGameStore((state) => state.setInputMode);
   const selectQuickPrompt = useGameStore((state) => state.selectQuickPrompt);
   const sendMessage = useGameStore((state) => state.sendMessage);
   const resetDialogue = useGameStore((state) => state.resetDialogue);
@@ -113,6 +116,15 @@ export function PlayPage() {
               onSelect={selectQuickPrompt}
             />
 
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">// input_mode</span>
+              <InputModeSelector
+                value={inputMode}
+                disabled={loading || sessionLoading}
+                onChange={setInputMode}
+              />
+            </div>
+
             <div className="mt-3 rounded-xl border border-cyan-400/20 bg-slate-950/70 p-2">
               <textarea
                 value={input}
@@ -123,7 +135,7 @@ export function PlayPage() {
                     void sendMessage();
                   }
                 }}
-                placeholder={`向${activeNpcName}开口……（Enter 发送 / Shift+Enter 换行）`}
+                placeholder={buildPlaceholder(inputMode, activeNpcName)}
                 rows={2}
                 maxLength={MAX_INPUT * 4}
                 className="cyber-scroll block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500"
@@ -178,4 +190,14 @@ export function PlayPage() {
       <AlchemyModal />
     </>
   );
+}
+
+function buildPlaceholder(mode: "dialogue" | "action" | "monologue", activeNpcName: string): string {
+  if (mode === "action") {
+    return "描述一个动作……（如：偷摸过去；Enter 发送）";
+  }
+  if (mode === "monologue") {
+    return "心声闪过……（NPC 不会听见，但天道云可能记下）";
+  }
+  return `向${activeNpcName}开口……（Enter 发送 / Shift+Enter 换行）`;
 }
