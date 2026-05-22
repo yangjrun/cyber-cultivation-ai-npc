@@ -8,6 +8,7 @@ import type { NpcState } from "../types/npc.js";
 import type { PlayerState, RootElement } from "../types/player.js";
 import type { QuestProgress } from "../types/quest.js";
 import type { SceneSnapshot } from "../types/scene.js";
+import type { SpeakMode } from "../types/chat.js";
 
 export type SystemPromptInput = {
   npcId: string;
@@ -43,6 +44,7 @@ export type PriorNpcReply = {
 export type PromptMessagesInput = PromptInput & {
   evolvedTraits?: string[];
   priorReplies?: PriorNpcReply[];
+  speakMode?: SpeakMode;
 };
 
 export function buildSystemPrompt({ npcId, evolvedTraits }: SystemPromptInput): string {
@@ -166,6 +168,7 @@ export function buildPrompt(input: PromptInput): string {
 
 export function buildPromptMessages(input: PromptMessagesInput): LlmMessage[] {
   const dynamicSections = [
+    buildSpeakModeSection(input.speakMode),
     buildEvolvedTraitsSection(input.evolvedTraits),
     buildPriorRepliesSection(input.priorReplies),
     buildUserTurn({
@@ -207,6 +210,18 @@ function buildEvolvedTraitsSection(traits: string[] | undefined): string {
   return evolved.length > 0
     ? `\n\n# 演化人格（基于历史对话累计）\n\n${evolved.map((trait) => `- ${trait}`).join("\n")}`
     : "";
+}
+
+function buildSpeakModeSection(mode: SpeakMode | undefined): string {
+  if (mode === "interrupt") {
+    return "# 提示\n\n你正在打断上面那位发言。可以直接顶嘴、抢话、不必客气；语气更急、更冲。";
+  }
+
+  if (mode === "action_only") {
+    return "# 提示\n\n这一轮你不开口。dialogue 字段留空字符串，只在 actions 数组里填一个 *动作描写*（例如 *斜眼* / *转身离开*）。";
+  }
+
+  return "";
 }
 
 function buildPriorRepliesSection(replies: PriorNpcReply[] | undefined): string {

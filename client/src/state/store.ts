@@ -193,6 +193,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         actions: reply.actions && reply.actions.length > 0 ? reply.actions : undefined,
         intentType: reply.intent.type,
         kind: reply.kind,
+        speakMode: reply.speakMode,
         timestamp: nowTime()
       }));
 

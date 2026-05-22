@@ -63,7 +63,8 @@ export async function orchestrateGroupChatTurn({
         playerInput,
         scene,
         priorReplies: replies.map(({ npcId, dialogue }) => ({ npcId, dialogue })),
-        applyActions: replies.length === 0
+        applyActions: replies.length === 0,
+        interactionMode: speaker.mode
       });
       replies.push({ ...reply, speakMode: speaker.mode });
     } catch (error) {

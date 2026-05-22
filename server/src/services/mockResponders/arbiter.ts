@@ -3,6 +3,7 @@ import type { SceneSnapshot } from "../../types/scene.js";
 
 const SILENCE_TRIGGERS = ["滚", "别理", "不要回应", "离我远点", "闭嘴"];
 const GROUP_TRIGGERS = ["让我过", "打听", "盘问", "你们", "是不是"];
+const ACTION_ONLY_PATTERN = /^[（(].+[)）]$/;
 
 export type MockArbiterInput = {
   targetNpcId: string;
@@ -17,6 +18,13 @@ export function mockArbiter({ targetNpcId, playerInput, scene }: MockArbiterInpu
     return {
       speakers: [],
       rationale: "玩家在驱赶，全员沉默。"
+    };
+  }
+
+  if (ACTION_ONLY_PATTERN.test(trimmed)) {
+    return {
+      speakers: [{ npcId: targetNpcId, mode: "action_only" }],
+      rationale: "玩家只做了个动作，目标 NPC 也只回一个动作。"
     };
   }
 

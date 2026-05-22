@@ -179,6 +179,8 @@ describe("POST /api/chat", () => {
     );
     expect(response.body.groupChat).toMatchObject({ sceneId: "thunder_tavern", speakerOrder: ["chimu", "qinggu"] });
     expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
+    expect(response.body.replies[0].speakMode).toBe("speak");
+    expect(response.body.replies[1].speakMode).toBe("interrupt");
     expect(getRecentMemories(`${sessionId}::chimu`, 5)).toEqual(["玩家试图通过赤目的卡口。"]);
     expect(getRecentMemories(`${sessionId}::qinggu`, 5)).toEqual(["玩家怀疑苏鹤的身份，青姑顺势卖了线索。"]);
   });
@@ -349,6 +351,29 @@ describe("POST /api/chat", () => {
     });
     expect(response.body.groupChat.speakerOrder).toEqual(["narrator"]);
     expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
+  });
+
+  it("returns action_only reply when arbiter assigns action_only mode", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    await request(app)
+      .post("/api/scenes/switch")
+      .send({ sessionId, sceneId: "thunder_tavern" })
+      .expect(200);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "（盯着她不说话）", npcId: "qinggu", sessionId })
+      .expect(200);
+
+    expect(response.body.replies).toHaveLength(1);
+    expect(response.body.replies[0]).toMatchObject({
+      npcId: "qinggu",
+      dialogue: "",
+      speakMode: "action_only"
+    });
+    expect(response.body.replies[0].actions.length).toBeGreaterThan(0);
   });
 
   it("rejects unknown inputMode values", async () => {

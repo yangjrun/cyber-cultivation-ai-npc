@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { InputMode } from "../api/chatApi";
+import type { InputMode, SpeakMode } from "../api/chatApi";
 
 export type ChatMessage = {
   id: string;
@@ -11,6 +11,7 @@ export type ChatMessage = {
   actions?: string[];
   intentType?: string;
   kind?: InputMode;
+  speakMode?: SpeakMode;
   timestamp: string;
 };
 
@@ -77,15 +78,23 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   }
 
   const isPlayer = message.speaker === "player";
+  const isActionOnly = !isPlayer && !message.text && message.actions && message.actions.length > 0;
+
+  if (isActionOnly) {
+    return <ActionOnlyBubble message={message} />;
+  }
+
+  const isInterrupt = !isPlayer && message.speakMode === "interrupt";
   const intent = message.intentType && message.intentType !== "none" ? message.intentType : null;
   const tone = getNpcTone(message.npcId);
 
   return (
     <article
+      data-speak-mode={message.speakMode}
       className={
         isPlayer
           ? "ml-10 rounded-xl border border-cyan-400/30 bg-cyan-500/5 p-3 text-right shadow-[0_0_18px_-12px_rgba(34,211,238,0.7)]"
-          : `mr-10 rounded-xl border p-3 shadow-[0_0_18px_-12px] ${tone.bubble}`
+          : `mr-10 rounded-xl border p-3 shadow-[0_0_18px_-12px] ${tone.bubble}${isInterrupt ? " !border-yellow-400/60 !shadow-yellow-400/60" : ""}`
       }
     >
       <header
@@ -96,6 +105,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         }
       >
         <span>{message.name}</span>
+        {isInterrupt ? <span className="text-yellow-300">[打断]</span> : null}
         <span className="font-mono text-slate-500">{message.timestamp}</span>
       </header>
 
@@ -126,6 +136,23 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           intent: {intent}
         </div>
       ) : null}
+    </article>
+  );
+}
+
+function ActionOnlyBubble({ message }: { message: ChatMessage }) {
+  return (
+    <article
+      data-testid="action-only-bubble"
+      className="mx-16 rounded-xl border border-slate-500/20 bg-slate-700/10 p-2 text-center shadow-[0_0_12px_-12px]"
+    >
+      <header className="mb-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] text-slate-400/70">
+        <span>{message.name}</span>
+        <span className="font-mono text-slate-500">{message.timestamp}</span>
+      </header>
+      <p className="text-xs italic leading-5 text-slate-300/80">
+        {(message.actions ?? []).join("  ")}
+      </p>
     </article>
   );
 }

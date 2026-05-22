@@ -56,6 +56,18 @@ describe("turnArbiter (mock mode)", () => {
     expect(decision.speakers).toEqual([]);
     expect(decision.rationale).toContain("沉默");
   });
+
+  it("returns action_only mode when player input is wrapped in parentheses", async () => {
+    const decision = await arbitrateTurn({
+      targetNpcId: "qinggu",
+      playerInput: "（盯着她不说话）",
+      scene: buildSnapshot("thunder_tavern"),
+      npcStates: {},
+      lastSpokeTurns: {}
+    });
+
+    expect(decision.speakers).toEqual([{ npcId: "qinggu", mode: "action_only" }]);
+  });
 });
 
 describe("speakerLog", () => {

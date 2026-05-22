@@ -3,6 +3,8 @@ import { defaultPlayer, normalizePlayer, type PlayerState } from "./sessionApi";
 
 export type InputMode = "dialogue" | "action" | "monologue";
 
+export type SpeakMode = "speak" | "interrupt" | "action_only" | "silent";
+
 export type NpcState = {
   trust: number;
   fear: number;
@@ -25,6 +27,7 @@ export type ChatReply = {
   actionResult: string;
   kind: InputMode;
   actions?: string[];
+  speakMode?: SpeakMode;
   affectedStates?: Record<string, NpcState>;
 };
 
@@ -83,9 +86,11 @@ export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): Ch
   const mode = normalizeMode(record.mode);
   const fallbackReply = normalizeReply(record, fallbackNpcId, mode);
   const replies = Array.isArray(record.replies)
-    ? record.replies.map((reply) => normalizeReply(reply, fallbackNpcId, mode)).filter((reply) => reply.dialogue)
+    ? record.replies
+        .map((reply) => normalizeReply(reply, fallbackNpcId, mode))
+        .filter((reply) => reply.dialogue || (reply.actions && reply.actions.length > 0))
     : [];
-  const normalizedReplies = replies.length > 0 ? replies : [fallbackReply];
+  const normalizedReplies = replies.length > 0 ? replies : [normalizeFallbackReply(fallbackReply)];
   const [firstReply] = normalizedReplies;
 
   return {
@@ -101,16 +106,25 @@ export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): Ch
   };
 }
 
+function normalizeFallbackReply(reply: ChatReply): ChatReply {
+  if (reply.dialogue || (reply.actions && reply.actions.length > 0)) {
+    return reply;
+  }
+
+  return { ...reply, dialogue: DEFAULT_DIALOGUE };
+}
+
 function normalizeReply(raw: unknown, fallbackNpcId: string, fallbackKind: InputMode): ChatReply {
   const record = isRecord(raw) ? raw : {};
   const npcId = normalizeString(record.npcId) || fallbackNpcId;
   const kind = normalizeMode(record.kind, fallbackKind);
   const affectedStates = normalizeAffectedStates(record.affectedStates);
   const actions = normalizeActions(record.actions);
+  const speakMode = normalizeSpeakMode(record.speakMode);
 
   return {
     npcId,
-    dialogue: normalizeString(record.dialogue) || DEFAULT_DIALOGUE,
+    dialogue: normalizeString(record.dialogue),
     tone: normalizeString(record.tone),
     intent: normalizeIntent(record.intent),
     state: normalizeState(record.state),
@@ -118,8 +132,17 @@ function normalizeReply(raw: unknown, fallbackNpcId: string, fallbackKind: Input
     actionResult: normalizeString(record.actionResult),
     kind,
     ...(actions.length > 0 ? { actions } : {}),
+    ...(speakMode ? { speakMode } : {}),
     ...(affectedStates ? { affectedStates } : {})
   };
+}
+
+const VALID_SPEAK_MODES: SpeakMode[] = ["speak", "interrupt", "action_only", "silent"];
+
+function normalizeSpeakMode(value: unknown): SpeakMode | undefined {
+  return typeof value === "string" && VALID_SPEAK_MODES.includes(value as SpeakMode)
+    ? (value as SpeakMode)
+    : undefined;
 }
 
 function normalizeActions(value: unknown): string[] {

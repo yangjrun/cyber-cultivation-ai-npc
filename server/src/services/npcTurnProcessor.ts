@@ -6,7 +6,7 @@ import { buildPromptMessages, mergeMemoriesForPrompt, type PriorNpcReply } from 
 import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "./questEngine.js";
 import { validateLlmResponse } from "./responseValidator.js";
 import { scopedNpcId as makeScopedNpcId } from "./scopedNpcId.js";
-import type { ChatReply } from "../types/chat.js";
+import type { ChatReply, SpeakMode } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
 import type { SceneSnapshot } from "../types/scene.js";
 
@@ -18,6 +18,7 @@ export type ProcessNpcTurnInput = {
   scene?: SceneSnapshot;
   priorReplies?: PriorNpcReply[];
   applyActions?: boolean;
+  interactionMode?: SpeakMode;
 };
 
 export async function processNpcTurn({
@@ -27,7 +28,8 @@ export async function processNpcTurn({
   playerInput,
   scene,
   priorReplies = [],
-  applyActions = true
+  applyActions = true,
+  interactionMode
 }: ProcessNpcTurnInput): Promise<ChatReply> {
   const scopedNpcId = makeScopedNpcId(sessionId, npcId);
   const [retrieved, recent] = await Promise.all([
@@ -47,12 +49,23 @@ export async function processNpcTurn({
       scene,
       activeQuests,
       evolvedTraits,
-      priorReplies
+      priorReplies,
+      speakMode: interactionMode
     }),
     playerInput,
     npcId
   });
   const npcResponse = validateLlmResponse(rawResponse);
+
+  let dialogue = npcResponse.dialogue;
+  let actions = npcResponse.actions ?? [];
+
+  if (interactionMode === "action_only") {
+    dialogue = "";
+    if (actions.length === 0) {
+      actions = ["*沉默*"];
+    }
+  }
 
   applyStateDelta(scopedNpcId, npcResponse.state_delta);
   const baseActionResult = applyActions ? executeIntent(scopedNpcId, npcResponse.intent) : "";
@@ -72,13 +85,13 @@ export async function processNpcTurn({
 
   return {
     npcId,
-    dialogue: npcResponse.dialogue,
+    dialogue,
     tone: npcResponse.tone,
     intent: npcResponse.intent,
     state: getNpcState(scopedNpcId),
     memoryAdded: npcResponse.memory,
     actionResult: [baseActionResult, ...questResult.actionResults].filter(Boolean).join(" / "),
     kind: "dialogue",
-    actions: npcResponse.actions ?? []
+    actions
   };
 }
