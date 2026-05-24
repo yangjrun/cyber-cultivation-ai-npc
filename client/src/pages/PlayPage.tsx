@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ActionPanel } from "../components/ActionPanel";
 import { AlchemyModal } from "../components/AlchemyModal";
+import { ArtifactPanel } from "../components/ArtifactPanel";
 import { CultivationPanel } from "../components/CultivationPanel";
 import { DialoguePanel } from "../components/DialoguePanel";
 import { InputModeSelector } from "../components/InputModeSelector";
@@ -181,6 +182,7 @@ export function PlayPage() {
           <CultivationPanel />
           <InventoryPanel />
           <QuestLog />
+          <ArtifactPanel />
           <StatePanel state={npcState} />
           <MemoryPanel memories={memories} npcName={activeNpcName} />
           <ActionPanel actionResult={lastActionResult} intentType={lastIntent} />
