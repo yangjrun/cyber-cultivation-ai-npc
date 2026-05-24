@@ -264,7 +264,7 @@ export function getDefaultProvider(): EmbeddingProvider;  // 单例
 
 > 默认值已选定（用户在启动时确认），列出供后续调整参考。
 
-**决策点 A — 向量后端**：✅ hash-based 占位 + 可插拔接口（已选）。代价：相似度不如真 embedding，但 0 依赖、Windows 友好、可单测。后续切 OpenAI 只需新增 `openaiProvider.ts`。
+**决策点 A — 向量后端**：✅ hash-based 占位 + 可插拔接口（已选）。代价：相似度不如真 embedding，但 0 依赖、Windows 友好、可单测。**【2026-05 后续】** OpenAI provider 已接入（`server/src/services/embedding/openaiProvider.ts`），env `EMBEDDING_PROVIDER=openai` 启用，走 `text-embedding-3-small` + `dimensions: 128` 参数（Matryoshka 截断，保留 128 维存储兼容）。key 缺失自动 fallback 到 hash。
 
 **决策点 B — embedding 维度**：默认 128（不是 768）。理由：hash 方案信号有限，维度高也不会更好；128 维 BLOB 512 字节，10k 条记忆才 5MB。OpenAI text-embedding-3-small 是 1536 维，切换时改 dim 即可。
 

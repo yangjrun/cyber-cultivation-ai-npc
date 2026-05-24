@@ -2,6 +2,7 @@ import { applyStateDelta } from "./gameState.js";
 import { addMemory } from "./memoryStore.js";
 import { scanForbiddenKeywords } from "./forbiddenKeywords.js";
 import { scopedNpcId } from "./scopedNpcId.js";
+import { recordCombatFlags } from "./worldStateFlags.js";
 import type { NpcState } from "../types/npc.js";
 import type { SceneSnapshot } from "../types/scene.js";
 
@@ -52,6 +53,8 @@ export async function resolveAction({
   const target = verb === "出手" && scene ? findTargetNpc(playerInput, scene) : null;
   const witnesses: ActionWitness[] = [];
   const affectedStates: Record<string, NpcState> = {};
+
+  recordCombatFlags(sessionId, verb, hits.length);
 
   if (scene) {
     for (const { profile } of scene.npcs) {

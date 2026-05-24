@@ -9,3 +9,7 @@ dist/
 .DS_Store
 *.log
 server/data/
+e2e/playwright-report/
+e2e/test-results/
+playwright-report/
+test-results/

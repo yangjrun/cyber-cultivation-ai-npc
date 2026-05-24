@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { defaultRoots, getStageByIndex } from "../data/cultivationBalance.js";
+import { getPlayerTrait, type PlayerTraitId } from "../data/playerTraits.js";
 import { DEFAULT_SCENE_ID } from "../data/scenes.js";
 import { getDb } from "../db/connection.js";
 import { initializeStarterInventory } from "./inventoryStore.js";
 import { initializeRelationsForSession } from "./npcRelationsStore.js";
 import type { ElementRoots, PlayerState, RootElement, SessionSnapshot } from "../types/player.js";
+
+export type CreateSessionInput = {
+  name?: string;
+  roots?: ElementRoots;
+  traitId?: PlayerTraitId;
+};
 
 const defaultPlayer = {
   name: "陆玄",
@@ -22,6 +29,29 @@ const defaultPlayer = {
   alertShieldUntil: null,
   alertShieldStrength: 0
 } as const;
+
+type ResolvedInitialPlayer = {
+  name: string;
+  visibleTraits: string[];
+  recentActions: string[];
+  roots: ElementRoots;
+};
+
+function resolveInitialPlayer(input?: CreateSessionInput): ResolvedInitialPlayer {
+  const name = input?.name?.trim() ? input.name.trim() : defaultPlayer.name;
+  const roots = input?.roots ? normalizeRoots(input.roots) : { ...defaultPlayer.roots };
+
+  let visibleTraits: string[] = [...defaultPlayer.visibleTraits];
+  let recentActions: string[] = [...defaultPlayer.recentActions];
+
+  if (input?.traitId) {
+    const trait = getPlayerTrait(input.traitId);
+    visibleTraits = [...trait.visibleTraits];
+    recentActions = [...trait.recentActions];
+  }
+
+  return { name, visibleTraits, recentActions, roots };
+}
 
 type PlayerRow = {
   id: string;
@@ -56,16 +86,17 @@ export type PlayerPatch = Partial<Pick<
   "alertShieldStrength"
 >>;
 
-export function createSession(): SessionSnapshot {
+export function createSession(input?: CreateSessionInput): SessionSnapshot {
   const sessionId = randomUUID();
   const playerId = randomUUID();
   const createdAt = nowIso();
   const db = getDb();
+  const initial = resolveInitialPlayer(input);
 
   db.transaction(() => {
     db.prepare("INSERT INTO sessions (id, created_at, updated_at) VALUES (?, ?, ?)")
       .run(sessionId, createdAt, createdAt);
-    insertPlayer(sessionId, playerId, createdAt);
+    insertPlayer(sessionId, playerId, createdAt, initial);
     initializeStarterInventory(sessionId);
     db.prepare("INSERT INTO active_scene (session_id, scene_id, updated_at) VALUES (?, ?, ?)")
       .run(sessionId, DEFAULT_SCENE_ID, createdAt);
@@ -110,7 +141,7 @@ export function createPlayer(sessionId: string): PlayerState {
 
   const createdAt = nowIso();
   const playerId = randomUUID();
-  insertPlayer(sessionId, playerId, createdAt);
+  insertPlayer(sessionId, playerId, createdAt, resolveInitialPlayer());
   initializeStarterInventory(sessionId);
 
   const player = getPlayer(sessionId);
@@ -190,7 +221,7 @@ export function clearSessionsForTests(): void {
   getDb().prepare("DELETE FROM sessions").run();
 }
 
-function insertPlayer(sessionId: string, playerId: string, createdAt: string): void {
+function insertPlayer(sessionId: string, playerId: string, createdAt: string, initial: ResolvedInitialPlayer): void {
   getDb()
     .prepare(
       `INSERT INTO players (
@@ -202,16 +233,16 @@ function insertPlayer(sessionId: string, playerId: string, createdAt: string): v
     .run(
       playerId,
       sessionId,
-      defaultPlayer.name,
+      initial.name,
       defaultPlayer.realm,
       defaultPlayer.hasIllegalChip ? 1 : 0,
-      JSON.stringify(defaultPlayer.visibleTraits),
-      JSON.stringify(defaultPlayer.recentActions),
+      JSON.stringify(initial.visibleTraits),
+      JSON.stringify(initial.recentActions),
       defaultPlayer.spiritStones,
       defaultPlayer.qiCurrent,
       defaultPlayer.qiCap,
       defaultPlayer.cultivationStageIdx,
-      JSON.stringify(defaultPlayer.roots),
+      JSON.stringify(initial.roots),
       defaultPlayer.activeTechniqueId,
       defaultPlayer.breakthroughBonusUntil,
       defaultPlayer.alertShieldUntil,

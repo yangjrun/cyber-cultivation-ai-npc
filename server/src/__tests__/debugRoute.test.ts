@@ -4,6 +4,7 @@ import { createApp } from "../index.js";
 import { resetGameState } from "../services/gameState.js";
 import { addMemory, clearAllMemoriesForTests } from "../services/memoryStore.js";
 import { clearRelationsForTests } from "../services/npcRelationsStore.js";
+import { recordArbiterFallback, recordLlmCall, resetMetricsForTests } from "../services/observability.js";
 import { clearSessionsForTests } from "../services/playerStore.js";
 import { clearQuestProgressForTests } from "../services/questStore.js";
 import { clearInventoryForTests } from "../services/inventoryStore.js";
@@ -19,6 +20,7 @@ describe("debug routes", () => {
     clearInventoryForTests();
     clearSessionsForTests();
     resetGameState();
+    resetMetricsForTests();
   });
 
   it("GET /api/debug/memory returns retrieved + recent for an NPC", async () => {
@@ -62,5 +64,39 @@ describe("debug routes", () => {
 
     const created = await request(app).post("/api/session").send({}).expect(201);
     await request(app).get(`/api/debug/memory/${created.body.sessionId}/unknown`).query({ q: "test" }).expect(404);
+  });
+
+  it("GET /api/debug/metrics returns empty snapshot before any calls", async () => {
+    const app = createApp();
+
+    const res = await request(app).get("/api/debug/metrics").expect(200);
+
+    expect(res.body.totals).toEqual({ calls: 0, errors: 0, mockHits: 0, arbiterFallbacks: 0 });
+    expect(res.body.perCallSite).toEqual([]);
+    expect(typeof res.body.startedAt).toBe("number");
+    expect(typeof res.body.uptimeSec).toBe("number");
+  });
+
+  it("GET /api/debug/metrics reflects recorded calls + arbiter fallbacks", async () => {
+    const app = createApp();
+
+    recordLlmCall({ callSite: "baili", apiFormat: "claude", durationMs: 180, success: true, retries: 0, tokensIn: 100, tokensOut: 30, cacheReadTokens: 500, cacheCreationTokens: 50, timestamp: Date.now() });
+    recordLlmCall({ callSite: "baili", apiFormat: "claude", durationMs: 220, success: false, errorKind: "http_5xx", retries: 1, timestamp: Date.now() });
+    recordLlmCall({ callSite: "arbiter", apiFormat: "claude", durationMs: 90, success: true, retries: 0, timestamp: Date.now() });
+    recordArbiterFallback("simulated");
+
+    const res = await request(app).get("/api/debug/metrics").expect(200);
+
+    expect(res.body.totals.calls).toBe(3);
+    expect(res.body.totals.errors).toBe(1);
+    expect(res.body.totals.arbiterFallbacks).toBe(1);
+
+    const baili = res.body.perCallSite.find((p: { callSite: string }) => p.callSite === "baili");
+    expect(baili.totalCalls).toBe(2);
+    expect(baili.errorCount).toBe(1);
+    expect(baili.errorBreakdown.http_5xx).toBe(1);
+    expect(baili.tokens.inTotal).toBe(100);
+    expect(baili.tokens.cacheReadTotal).toBe(500);
+    expect(baili.tokens.cacheHitRatio).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getMockResponder } from "./mockResponders/index.js";
+import { recordLlmCall, type LlmApiFormat, type LlmErrorKind } from "./observability.js";
 import type { LlmMessage, LlmTextBlock } from "../types/llm.js";
 
 type RequestLlmInput = {
@@ -8,42 +9,195 @@ type RequestLlmInput = {
   npcId?: string;
 };
 
+type TokenUsage = {
+  tokensIn?: number;
+  tokensOut?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+};
+
+type AttemptOutcome =
+  | { kind: "success"; value: string; tokens?: TokenUsage }
+  | { kind: "retryable"; errorKind: LlmErrorKind; error: Error }
+  | { kind: "fatal"; errorKind: LlmErrorKind; error: Error };
+
+type RetryOptions = {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  jitterMaxMs: number;
+};
+
+class RetryFailure extends Error {
+  constructor(readonly errorKind: LlmErrorKind, readonly retries: number, readonly cause: Error) {
+    super(cause.message);
+    this.name = "RetryFailure";
+  }
+}
+
 export async function generateNpcResponse(prompt: string, playerInput: string, npcId: string = "baili"): Promise<string> {
   return requestLlm({
-    messages: [
-      {
-        role: "system",
-        content: prompt
-      }
-    ],
+    messages: [{ role: "system", content: prompt }],
     playerInput,
     npcId
   });
 }
 
 export async function requestLlm({ messages, playerInput, npcId = "baili" }: RequestLlmInput): Promise<string> {
+  const callSite = npcId;
+  const startedAt = Date.now();
+
   if (!process.env.LLM_API_KEY) {
+    recordLlmCall({
+      callSite,
+      apiFormat: "mock",
+      durationMs: 0,
+      success: true,
+      retries: 0,
+      timestamp: startedAt
+    });
     return JSON.stringify(getMockResponder(npcId)(playerInput));
   }
 
-  const model = process.env.LLM_MODEL;
+  return executeRealLlmRequest(messages, callSite, startedAt);
+}
 
+type RequestLlmTextInput = {
+  messages: LlmMessage[];
+  callSite: string;
+  mockFallback: () => string;
+};
+
+export async function requestLlmText({ messages, callSite, mockFallback }: RequestLlmTextInput): Promise<string> {
+  const startedAt = Date.now();
+
+  if (!process.env.LLM_API_KEY) {
+    recordLlmCall({
+      callSite,
+      apiFormat: "mock",
+      durationMs: 0,
+      success: true,
+      retries: 0,
+      timestamp: startedAt
+    });
+    return mockFallback();
+  }
+
+  return executeRealLlmRequest(messages, callSite, startedAt);
+}
+
+async function executeRealLlmRequest(messages: LlmMessage[], callSite: string, startedAt: number): Promise<string> {
+  const model = process.env.LLM_MODEL;
   if (!model) {
     throw new Error("LLM_MODEL is required when LLM_API_KEY is set");
   }
 
-  const apiFormat = process.env.LLM_API_FORMAT === "claude" ? "claude" : "openai";
+  const apiFormat: LlmApiFormat = process.env.LLM_API_FORMAT === "claude" ? "claude" : "openai";
+  const attempt = apiFormat === "claude"
+    ? () => attemptClaudeMessages(model, messages)
+    : () => attemptOpenAiCompatible(model, messages);
 
-  return apiFormat === "claude"
-    ? requestClaudeMessages(model, messages)
-    : requestOpenAiCompatible(model, messages);
+  try {
+    const { value, retries, tokens } = await withRetry(attempt, readRetryOptions());
+    recordLlmCall({
+      callSite,
+      apiFormat,
+      durationMs: Date.now() - startedAt,
+      success: true,
+      retries,
+      tokensIn: tokens?.tokensIn,
+      tokensOut: tokens?.tokensOut,
+      cacheReadTokens: tokens?.cacheReadTokens,
+      cacheCreationTokens: tokens?.cacheCreationTokens,
+      timestamp: startedAt
+    });
+    return value;
+  } catch (failure) {
+    if (failure instanceof RetryFailure) {
+      recordLlmCall({
+        callSite,
+        apiFormat,
+        durationMs: Date.now() - startedAt,
+        success: false,
+        errorKind: failure.errorKind,
+        retries: failure.retries,
+        timestamp: startedAt
+      });
+      throw failure.cause;
+    }
+    recordLlmCall({
+      callSite,
+      apiFormat,
+      durationMs: Date.now() - startedAt,
+      success: false,
+      errorKind: "other",
+      retries: 0,
+      timestamp: startedAt
+    });
+    throw failure;
+  }
 }
 
-async function requestOpenAiCompatible(model: string, messages: LlmMessage[]): Promise<string> {
+async function withRetry(
+  attempt: () => Promise<AttemptOutcome>,
+  options: RetryOptions
+): Promise<{ value: string; retries: number; tokens?: TokenUsage }> {
+  let attemptIdx = 0;
+
+  while (true) {
+    const outcome = await attempt();
+
+    if (outcome.kind === "success") {
+      return { value: outcome.value, retries: attemptIdx, tokens: outcome.tokens };
+    }
+
+    if (outcome.kind === "fatal" || attemptIdx >= options.maxRetries) {
+      throw new RetryFailure(outcome.errorKind, attemptIdx, outcome.error);
+    }
+
+    const delay = computeBackoff(attemptIdx, options);
+    if (delay > 0) {
+      await sleep(delay);
+    }
+    attemptIdx += 1;
+  }
+}
+
+function computeBackoff(attemptIdx: number, options: RetryOptions): number {
+  const exponential = options.baseDelayMs * 2 ** attemptIdx;
+  const capped = options.maxDelayMs > 0 ? Math.min(options.maxDelayMs, exponential) : exponential;
+  const jitter = options.jitterMaxMs > 0 ? Math.floor(Math.random() * options.jitterMaxMs) : 0;
+  return capped + jitter;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function readRetryOptions(): RetryOptions {
+  return {
+    maxRetries: parseNonNegativeInt(process.env.LLM_MAX_RETRIES, 2),
+    baseDelayMs: parseNonNegativeInt(process.env.LLM_RETRY_BASE_MS, 300),
+    maxDelayMs: parseNonNegativeInt(process.env.LLM_RETRY_MAX_MS, 3000),
+    jitterMaxMs: parseNonNegativeInt(process.env.LLM_RETRY_JITTER_MS, 200)
+  };
+}
+
+function parseNonNegativeInt(raw: string | undefined, fallback: number): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback;
+}
+
+async function attemptOpenAiCompatible(model: string, messages: LlmMessage[]): Promise<AttemptOutcome> {
   const baseUrl = process.env.LLM_BASE_URL?.replace(/\/$/, "");
 
   if (!baseUrl) {
-    throw new Error("LLM_BASE_URL is required for OpenAI-compatible LLM requests");
+    return {
+      kind: "fatal",
+      errorKind: "other",
+      error: new Error("LLM_BASE_URL is required for OpenAI-compatible LLM requests")
+    };
   }
 
   const controller = new AbortController();
@@ -69,29 +223,46 @@ async function requestOpenAiCompatible(model: string, messages: LlmMessage[]): P
     });
 
     if (!response.ok) {
-      throw new Error(`LLM request failed with status ${response.status}`);
+      const errorKind = classifyHttpStatus(response.status);
+      const error = new Error(`LLM request failed with status ${response.status}`);
+      return {
+        kind: errorKind === "http_4xx" ? "fatal" : "retryable",
+        errorKind,
+        error
+      };
     }
 
     const payload = await response.json() as unknown;
     const content = extractOpenAiMessageContent(payload);
 
     if (!content) {
-      throw new Error("LLM response did not include message content");
+      return {
+        kind: "fatal",
+        errorKind: "parse",
+        error: new Error("LLM response did not include message content")
+      };
     }
 
-    return content;
+    return { kind: "success", value: content, tokens: extractOpenAiTokenUsage(payload) };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("LLM request timed out");
+      return {
+        kind: "retryable",
+        errorKind: "timeout",
+        error: new Error("LLM request timed out")
+      };
     }
-
-    throw error;
+    return {
+      kind: "retryable",
+      errorKind: "network",
+      error: error instanceof Error ? error : new Error(String(error))
+    };
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-async function requestClaudeMessages(model: string, messages: LlmMessage[]): Promise<string> {
+async function attemptClaudeMessages(model: string, messages: LlmMessage[]): Promise<AttemptOutcome> {
   const client = new Anthropic({
     apiKey: process.env.LLM_API_KEY,
     authToken: null,
@@ -102,19 +273,65 @@ async function requestClaudeMessages(model: string, messages: LlmMessage[]): Pro
       "anthropic-version": process.env.ANTHROPIC_VERSION ?? "2023-06-01"
     }
   });
-  const response = await client.messages.create({
-    model,
-    max_tokens: 512,
-    system: toClaudeSystem(messages),
-    messages: toClaudeMessages(messages)
-  });
-  const content = extractClaudeMessageContent(response);
 
-  if (!content) {
-    throw new Error("LLM response did not include message content");
+  try {
+    const response = await client.messages.create({
+      model,
+      max_tokens: 512,
+      system: toClaudeSystem(messages),
+      messages: toClaudeMessages(messages)
+    });
+    const content = extractClaudeMessageContent(response);
+
+    if (!content) {
+      return {
+        kind: "fatal",
+        errorKind: "parse",
+        error: new Error("LLM response did not include message content")
+      };
+    }
+
+    return { kind: "success", value: content, tokens: extractClaudeTokenUsage(response) };
+  } catch (error) {
+    return classifyClaudeError(error);
+  }
+}
+
+function classifyClaudeError(error: unknown): AttemptOutcome {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const name = err.name;
+
+  if (name === "APIConnectionTimeoutError") {
+    return { kind: "retryable", errorKind: "timeout", error: err };
   }
 
-  return content;
+  if (name === "APIConnectionError") {
+    return { kind: "retryable", errorKind: "network", error: err };
+  }
+
+  const status = extractStatus(error);
+  if (status === 429) {
+    return { kind: "retryable", errorKind: "http_429", error: err };
+  }
+  if (status !== undefined && status >= 500) {
+    return { kind: "retryable", errorKind: "http_5xx", error: err };
+  }
+  if (status !== undefined && status >= 400) {
+    return { kind: "fatal", errorKind: "http_4xx", error: err };
+  }
+
+  return { kind: "retryable", errorKind: "other", error: err };
+}
+
+function extractStatus(error: unknown): number | undefined {
+  if (!isRecord(error)) return undefined;
+  return typeof error.status === "number" ? error.status : undefined;
+}
+
+function classifyHttpStatus(status: number): LlmErrorKind {
+  if (status === 429) return "http_429";
+  if (status >= 500) return "http_5xx";
+  return "http_4xx";
 }
 
 function toClaudeSystem(messages: LlmMessage[]): Anthropic.TextBlockParam[] | undefined {
@@ -129,12 +346,7 @@ function toClaudeMessages(messages: LlmMessage[]): Anthropic.MessageParam[] {
   const nonSystem = messages.filter((message) => message.role !== "system");
 
   if (nonSystem.length === 0) {
-    return [
-      {
-        role: "user",
-        content: "继续。"
-      }
-    ];
+    return [{ role: "user", content: "继续。" }];
   }
 
   return nonSystem.map((message) => ({
@@ -199,6 +411,17 @@ function extractClaudeMessageContent(response: unknown): string | null {
   return textBlocks.length > 0 ? textBlocks.join("\n") : null;
 }
 
+function extractClaudeTokenUsage(response: unknown): TokenUsage | undefined {
+  if (!isRecord(response) || !isRecord(response.usage)) return undefined;
+  const usage = response.usage;
+  const tokens: TokenUsage = {};
+  if (typeof usage.input_tokens === "number") tokens.tokensIn = usage.input_tokens;
+  if (typeof usage.output_tokens === "number") tokens.tokensOut = usage.output_tokens;
+  if (typeof usage.cache_read_input_tokens === "number") tokens.cacheReadTokens = usage.cache_read_input_tokens;
+  if (typeof usage.cache_creation_input_tokens === "number") tokens.cacheCreationTokens = usage.cache_creation_input_tokens;
+  return Object.keys(tokens).length > 0 ? tokens : undefined;
+}
+
 function parseJson(value: string): unknown {
   try {
     return JSON.parse(value) as unknown;
@@ -219,6 +442,15 @@ function extractOpenAiMessageContent(payload: unknown): string | null {
   }
 
   return choice.message.content;
+}
+
+function extractOpenAiTokenUsage(payload: unknown): TokenUsage | undefined {
+  if (!isRecord(payload) || !isRecord(payload.usage)) return undefined;
+  const usage = payload.usage;
+  const tokens: TokenUsage = {};
+  if (typeof usage.prompt_tokens === "number") tokens.tokensIn = usage.prompt_tokens;
+  if (typeof usage.completion_tokens === "number") tokens.tokensOut = usage.completion_tokens;
+  return Object.keys(tokens).length > 0 ? tokens : undefined;
 }
 
 function stringifyContent(content: string | LlmTextBlock[]): string {

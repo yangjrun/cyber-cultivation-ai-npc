@@ -2,6 +2,7 @@ import { Router } from "express";
 import { applyStateDelta, getNpcState } from "../services/gameState.js";
 import { getPlayer, sessionExists, updatePlayer } from "../services/playerStore.js";
 import { calculateBreakthrough, calculateCultivationGain } from "../services/cultivationEngine.js";
+import { recordBreakthroughFlags, recordCultivationFlags } from "../services/worldStateFlags.js";
 import { validateBreakthroughBody, validateCultivateBody } from "../schemas/cultivation.js";
 
 export const cultivateRouter = Router();
@@ -32,6 +33,7 @@ cultivateRouter.post("/", (req, res, next) => {
 
     const result = calculateCultivationGain(player, duration);
     const updatedPlayer = updatePlayer(sessionId, { qiCurrent: result.qiCurrent });
+    recordCultivationFlags(sessionId);
 
     res.json({
       player: updatedPlayer,
@@ -83,6 +85,8 @@ breakthroughRouter.post("/", (req, res, next) => {
     if (result.alertDelta !== 0) {
       applyStateDelta(scopedNpcId, { trust: 0, fear: 0, anger: 0, tianDaoAlert: result.alertDelta });
     }
+
+    recordBreakthroughFlags(sessionId, result.success, effectiveAlert);
 
     res.json({
       success: result.success,

@@ -4,7 +4,7 @@ export function InventoryPanel() {
   const inventory = useGameStore((state) => state.inventory);
   const alchemyLoading = useGameStore((state) => state.alchemyLoading);
   const lastAlchemyResult = useGameStore((state) => state.lastAlchemyResult);
-  const useItem = useGameStore((state) => state.useItem);
+  const consumeItem = useGameStore((state) => state.consumeItem);
   const openAlchemyModal = useGameStore((state) => state.openAlchemyModal);
 
   return (
@@ -37,7 +37,7 @@ export function InventoryPanel() {
                 <button
                   type="button"
                   disabled={alchemyLoading}
-                  onClick={() => void useItem(entry.itemId)}
+                  onClick={() => void consumeItem(entry.itemId)}
                   className="mt-2 rounded border border-violet-300/25 px-2 py-1 text-[11px] text-violet-100 transition hover:border-violet-200 disabled:opacity-50"
                 >
                   使用

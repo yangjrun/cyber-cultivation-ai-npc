@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { listPlayerTraits } from "../data/playerTraits.js";
 import { DEFAULT_SCENE_ID } from "../data/scenes.js";
 import { getAllNpcStatesForSession, getNpcState, listKnownNpcIds } from "../services/gameState.js";
 import { getInventory } from "../services/inventoryStore.js";
@@ -8,6 +9,7 @@ import { getAllQuestProgressForSession } from "../services/questStore.js";
 import { getActiveSceneId } from "../services/sceneStore.js";
 import { createSession, getSession } from "../services/playerStore.js";
 import { scopedNpcId } from "../services/scopedNpcId.js";
+import { validateCreateSessionBody } from "../schemas/session.js";
 import type { SessionSnapshot } from "../types/player.js";
 
 const sessionParamsSchema = z.object({
@@ -16,12 +18,21 @@ const sessionParamsSchema = z.object({
 
 export const sessionRouter = Router();
 
-sessionRouter.post("/", (_req, res, next) => {
+sessionRouter.post("/", (req, res, next) => {
   try {
-    res.status(201).json(createSessionResponse(createSession()));
+    const validation = validateCreateSessionBody(req.body);
+    if (!validation.ok) {
+      res.status(validation.status).json({ error: validation.message });
+      return;
+    }
+    res.status(201).json(createSessionResponse(createSession(validation.body)));
   } catch (error) {
     next(error);
   }
+});
+
+sessionRouter.get("/traits", (_req, res) => {
+  res.json({ traits: listPlayerTraits() });
 });
 
 sessionRouter.get("/:id", (req, res, next) => {

@@ -13,7 +13,7 @@ export type ItemEffect =
 export type ItemDefinition = {
   id: string;
   name: string;
-  type: "material" | "pill" | "junk";
+  type: "material" | "pill" | "junk" | "artifact";
   description: string;
   effect?: ItemEffect;
 };
@@ -89,8 +89,21 @@ export const defaultPlayer: PlayerState = {
   alertShieldStrength: 0
 };
 
-export async function createSession(): Promise<SessionResponse> {
-  const raw = await fetchJsonWithRetry("/api/session", { method: "POST" });
+export type PlayerTraitId = "yiti_arm" | "leifa_scar" | "feifagen";
+
+export type CreateSessionInput = {
+  name?: string;
+  roots?: ElementRoots;
+  traitId?: PlayerTraitId;
+};
+
+export async function createSession(input?: CreateSessionInput): Promise<SessionResponse> {
+  const body = input && (input.name || input.roots || input.traitId) ? input : undefined;
+  const raw = await fetchJsonWithRetry("/api/session", {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
   return normalizeSessionResponse(raw);
 }
 
@@ -190,7 +203,7 @@ function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
   const name = normalizeString(raw.name);
   const type = normalizeString(raw.type);
 
-  if (!id || !name || !["material", "pill", "junk"].includes(type)) {
+  if (!id || !name || !["material", "pill", "junk", "artifact"].includes(type)) {
     return null;
   }
 

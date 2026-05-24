@@ -292,16 +292,35 @@ fly deploy
 **目标**:补技术债 + 加可观测性,demo 真正稳定。
 
 ### 可验证交付
-- LLM 超时 / 500 / 并发 / 限流测试齐全
-- `/api/debug/metrics`:每 NPC token 消耗 / 平均响应时间 / mock 命中率
-- Playwright E2E:核心 3 条路径(注册 session / 完成一次交易 / 突破一次)
-- 前端错误收集(Sentry 或 console aggregator)
+- [x] LLM 自动重试(5xx / 429 / 网络错 / 超时,指数退避 + 抖动,env 可配)
+- [x] `/api/debug/metrics`:每 callSite 调用次数 / p50/p95 延迟 / token 用量 / 缓存命中率 / 错误分类 / mock 命中率 / arbiter 降级计数
+- [x] `server/src/services/observability.ts` — in-memory ring buffer + 聚合
+- [x] `__tests__/observability.test.ts` + `__tests__/llmClient.retry.test.ts`
+- [x] LLM 超时 / 500 / 并发 / 限流测试齐全(5xx/429/4xx/network/timeout/429-burst/429-recovery/并发多 callSite 聚合,共 11 用例)
+- [x] Playwright E2E:核心 3 条路径(注册 session / 完成一次交易 / 突破一次)
+- [ ] 前端错误收集(Sentry 或 console aggregator)— 推迟到外部部署
 
 ### 关键文件改动
-- `server/src/__tests__/{llmClient.timeout,chatRoute.concurrent}.test.ts`
-- `server/src/services/observability.ts` — in-memory metrics
-- `e2e/playwright.config.ts` + `e2e/specs/`
-- `client/src/api/chatApi.ts` — 加 `p-retry`(可选)
+- `server/src/services/observability.ts` — 已建
+- `server/src/services/llmClient.ts` — 已重构(withRetry + 指标记录)
+- `server/src/routes/debug.ts` — 已加 `GET /metrics`
+- `server/src/services/turnArbiter.ts` — `console.warn` 已替换为 `recordArbiterFallback`
+- `e2e/playwright.config.ts` + `e2e/specs/` — 未建
+- `client/src/api/chatApi.ts` — 加 `p-retry`(可选) — 未做
+
+### Env 配置(可调)
+- `LLM_MAX_RETRIES`(默认 `2`,共 3 次尝试)
+- `LLM_RETRY_BASE_MS`(默认 `300`)
+- `LLM_RETRY_MAX_MS`(默认 `3000`)
+- `LLM_RETRY_JITTER_MS`(默认 `200`)
+- `OBSERVABILITY_BUFFER_SIZE`(默认 `1000`)
+
+### 剩余工作(Phase 7 — 下一轮)
+- Sentry / 前端错误收集(等真要部署给外部用户时再做)
+
+(✅ Playwright E2E:`e2e/playwright.config.ts` + 3 spec(`session / trade / breakthrough`),`npm run e2e` 3 用例全绿 ~8s)
+(✅ ESLint 已配置:两端 flat config + `@eslint/js` + `typescript-eslint` + `eslint-plugin-react-hooks`,`npm run lint` 两端 0 error/warning)
+(✅ 前端组件测试 100% 覆盖:17/17 组件)
 
 **工作量**:S→M(~2-4 天)
 

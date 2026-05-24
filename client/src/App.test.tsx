@@ -90,6 +90,9 @@ function renderApp(initialEntries: string[] = ["/play"]) {
 describe("App", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    // Pre-seed a stored sessionId so App auto-restores the session without
+    // routing through CharacterCreatorPage.
+    window.localStorage.setItem("cyber-cultivation.sessionId", "session-1");
     resetGameStoreForTests();
     vi.stubGlobal("fetch", createFetchMock());
   });

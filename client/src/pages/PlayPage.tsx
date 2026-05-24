@@ -8,6 +8,7 @@ import { DialoguePanel } from "../components/DialoguePanel";
 import { InputModeSelector } from "../components/InputModeSelector";
 import { InventoryPanel } from "../components/InventoryPanel";
 import { MemoryPanel } from "../components/MemoryPanel";
+import { MilestonePanel } from "../components/MilestonePanel";
 import { NpcListPanel } from "../components/NpcListPanel";
 import { NpcProfilePanel } from "../components/NpcProfilePanel";
 import { PlayerPanel } from "../components/PlayerPanel";
@@ -182,6 +183,7 @@ export function PlayPage() {
           <CultivationPanel />
           <InventoryPanel />
           <QuestLog />
+          <MilestonePanel />
           <ArtifactPanel />
           <StatePanel state={npcState} />
           <MemoryPanel memories={memories} npcName={activeNpcName} />

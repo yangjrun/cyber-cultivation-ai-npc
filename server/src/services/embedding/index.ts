@@ -1,5 +1,6 @@
 import type { EmbeddingProvider, EmbeddingVector } from "../../types/embedding.js";
 import { hashEmbeddingProvider } from "./hashProvider.js";
+import { isOpenAiEmbeddingConfigured, openAiEmbeddingProvider } from "./openaiProvider.js";
 
 export { EMBEDDING_DIM } from "../../types/embedding.js";
 export type { EmbeddingProvider, EmbeddingVector, SimilarityScore } from "../../types/embedding.js";
@@ -11,7 +12,17 @@ export function getDefaultProvider(): EmbeddingProvider {
     return hashEmbeddingProvider;
   }
 
-  throw new Error(`Unsupported EMBEDDING_PROVIDER: ${flag}. Only "hash" is currently registered.`);
+  if (flag === "openai") {
+    if (!isOpenAiEmbeddingConfigured()) {
+      process.stderr.write(
+        "[embedding] EMBEDDING_PROVIDER=openai but no API key/base URL configured; falling back to hash provider.\n"
+      );
+      return hashEmbeddingProvider;
+    }
+    return openAiEmbeddingProvider;
+  }
+
+  throw new Error(`Unsupported EMBEDDING_PROVIDER: ${flag}. Supported values: "hash", "openai".`);
 }
 
 export function cosineSimilarity(a: EmbeddingVector, b: EmbeddingVector): number {

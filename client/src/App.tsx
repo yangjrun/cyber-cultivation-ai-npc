@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { Link, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { CharacterCreatorPage } from "./pages/CharacterCreatorPage";
+import { ChroniclePage } from "./pages/ChroniclePage";
 import { MemoryCrystalPage } from "./pages/MemoryCrystalPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlayPage } from "./pages/PlayPage";
@@ -8,21 +10,28 @@ import { useGameStore } from "./state/store";
 
 export default function App() {
   const initializeSession = useGameStore((state) => state.initializeSession);
+  const sessionId = useGameStore((state) => state.sessionId);
 
   useEffect(() => {
-    void initializeSession();
-  }, [initializeSession]);
+    // Auto-load when a previous session exists in storage. Otherwise leave the
+    // user on CharacterCreatorPage to make a choice.
+    if (!sessionId && hasStoredSession()) {
+      void initializeSession();
+    }
+  }, [initializeSession, sessionId]);
 
   return (
     <main className="cyber-shell px-4 py-6 text-slate-100">
       <div className="relative z-10 mx-auto max-w-7xl">
         <TopNav />
         <Routes>
-          <Route path="/" element={<Navigate to="/play" replace />} />
+          <Route path="/" element={<LandingRedirect />} />
+          <Route path="/create" element={<CharacterCreatorPage />} />
           <Route element={<Outlet />}>
             <Route path="/play" element={<PlayPage />} />
             <Route path="/play/scene/:sceneId" element={<PlayPage />} />
             <Route path="/memory" element={<MemoryCrystalPage />} />
+            <Route path="/chronicle" element={<ChroniclePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
@@ -32,10 +41,27 @@ export default function App() {
   );
 }
 
+function LandingRedirect() {
+  const sessionId = useGameStore((state) => state.sessionId);
+  if (sessionId || hasStoredSession()) {
+    return <Navigate to="/play" replace />;
+  }
+  return <Navigate to="/create" replace />;
+}
+
+function hasStoredSession(): boolean {
+  try {
+    return Boolean(window.localStorage.getItem("cyber-cultivation.sessionId"));
+  } catch {
+    return false;
+  }
+}
+
 function TopNav() {
   const location = useLocation();
   const onPlay = location.pathname === "/" || location.pathname.startsWith("/play");
   const onMemory = location.pathname.startsWith("/memory");
+  const onChronicle = location.pathname.startsWith("/chronicle");
   const onSettings = location.pathname.startsWith("/settings");
 
   return (
@@ -47,6 +73,7 @@ function TopNav() {
       <div className="flex items-center gap-2 text-xs">
         <NavLink to="/play" label="对话" active={onPlay} />
         <NavLink to="/memory" label="记忆水晶" active={onMemory} />
+        <NavLink to="/chronicle" label="史册" active={onChronicle} />
         <NavLink to="/settings" label="设置" active={onSettings} />
       </div>
     </nav>

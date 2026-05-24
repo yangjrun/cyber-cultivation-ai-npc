@@ -1,4 +1,5 @@
 import { applyStateDelta, executeIntent, getNpcState } from "./gameState.js";
+import { buildEquippedPromptHints, buildEquippedTagList } from "./artifactEngine.js";
 import { requestLlm } from "./llmClient.js";
 import { addMemory, getRecentMemories, retrieveRelevantMemories } from "./memoryStore.js";
 import { deriveEvents, evaluateRules, getPersonality, recordEvents } from "./personalityEvolution.js";
@@ -6,6 +7,7 @@ import { buildPromptMessages, mergeMemoriesForPrompt, type PriorNpcReply } from 
 import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "./questEngine.js";
 import { validateLlmResponse } from "./responseValidator.js";
 import { scopedNpcId as makeScopedNpcId } from "./scopedNpcId.js";
+import { recordTurnFlags } from "./worldStateFlags.js";
 import type { ChatReply, SpeakMode } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
 import type { SceneSnapshot } from "../types/scene.js";
@@ -39,6 +41,8 @@ export async function processNpcTurn({
   const memories = mergeMemoriesForPrompt(retrieved, recent);
   const activeQuests = applyActions ? getRelevantQuests(sessionId, npcId) : [];
   const evolvedTraits = getPersonality(sessionId, npcId).evolvedTraits;
+  const equippedArtifactTags = buildEquippedTagList(sessionId);
+  const artifactHints = buildEquippedPromptHints(sessionId, npcId);
   const rawResponse = await requestLlm({
     messages: buildPromptMessages({
       scopedNpcId,
@@ -50,7 +54,9 @@ export async function processNpcTurn({
       activeQuests,
       evolvedTraits,
       priorReplies,
-      speakMode: interactionMode
+      speakMode: interactionMode,
+      equippedArtifactTags,
+      artifactHints
     }),
     playerInput,
     npcId
@@ -73,6 +79,15 @@ export async function processNpcTurn({
     ? evaluateQuestIntent(sessionId, scopedNpcId, npcResponse.intent)
     : { actionResults: [], statusChanges: [] };
   const personalityEvents = deriveEvents(npcResponse.intent, npcResponse.state_delta, questResult.statusChanges);
+
+  if (applyActions) {
+    recordTurnFlags({
+      sessionId,
+      playerInput,
+      intentType: npcResponse.intent.type,
+      statusChanges: questResult.statusChanges
+    });
+  }
 
   if (personalityEvents.length > 0) {
     recordEvents(sessionId, npcId, personalityEvents);

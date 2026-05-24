@@ -1,5 +1,5 @@
 import { fetchJsonWithRetry } from "./apiClient";
-import { normalizeInventory, normalizePlayer, type InventoryItem, type NpcStateSnapshot, type PlayerState } from "./sessionApi";
+import { normalizePlayer, type InventoryItem, type NpcStateSnapshot, type PlayerState } from "./sessionApi";
 
 export type CultivateResponse = {
   player: PlayerState;

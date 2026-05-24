@@ -4,6 +4,8 @@ import { runCultivationMigration } from "./002_cultivation.js";
 import { runWorldMigration } from "./003_world.js";
 import { runPersonalityMigration } from "./004_personality.js";
 import { runBackgroundEventsMigration } from "./005_background_events.js";
+import { runStorylineMigration } from "./006_storyline.js";
+import { runArtifactsMigration } from "./007_artifacts.js";
 
 type Migration = {
   version: string;
@@ -15,7 +17,9 @@ const migrations: Migration[] = [
   { version: "002_cultivation", run: runCultivationMigration },
   { version: "003_world", run: runWorldMigration },
   { version: "004_personality", run: runPersonalityMigration },
-  { version: "005_background_events", run: runBackgroundEventsMigration }
+  { version: "005_background_events", run: runBackgroundEventsMigration },
+  { version: "006_storyline", run: runStorylineMigration },
+  { version: "007_artifacts", run: runArtifactsMigration }
 ];
 
 export function runMigrations(db: Database): void {

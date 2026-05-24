@@ -8,7 +8,7 @@ export type UseItemResponse = {
   message: string;
 };
 
-export async function useInventoryItem(sessionId: string, itemId: string): Promise<UseItemResponse> {
+export async function consumeInventoryItem(sessionId: string, itemId: string): Promise<UseItemResponse> {
   const raw = await fetchJsonWithRetry("/api/inventory/use", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -2,10 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { getNpcProfile } from "../services/gameState.js";
 import { getRecentMemories, retrieveRelevantMemories } from "../services/memoryStore.js";
+import { getMetricsSnapshot } from "../services/observability.js";
 import { sessionExists } from "../services/playerStore.js";
 import { scopedNpcId as makeScopedNpcId } from "../services/scopedNpcId.js";
 
 export const debugRouter = Router();
+
+debugRouter.get("/metrics", (_req, res) => {
+  res.json(getMetricsSnapshot());
+});
 
 const paramsSchema = z.object({
   sessionId: z.string().uuid(),

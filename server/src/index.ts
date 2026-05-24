@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRateLimit } from "./middleware/rateLimit.js";
 import { alchemyRouter } from "./routes/alchemy.js";
+import { artifactRouter } from "./routes/artifacts.js";
 import { chatRouter } from "./routes/chat.js";
+import { chronicleRouter } from "./routes/chronicle.js";
 import { breakthroughRouter, cultivateRouter } from "./routes/cultivation.js";
 import { debugRouter, isDebugApiEnabled } from "./routes/debug.js";
 import { inventoryRouter } from "./routes/inventory.js";
@@ -28,6 +30,8 @@ export function createApp() {
   app.use("/api/quests", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "任务请求过于频繁，请稍后再试。" }), questRouter);
   app.use("/api/memory", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "记忆请求过于频繁，请稍后再试。" }), memoryRouter);
   app.use("/api/personality", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "人格请求过于频繁，请稍后再试。" }), personalityRouter);
+  app.use("/api/chronicle", createRateLimit({ windowMs: 60_000, maxRequests: 30, message: "史册请求过于频繁，请稍后再试。" }), chronicleRouter);
+  app.use("/api/artifacts", createRateLimit({ windowMs: 60_000, maxRequests: 60, message: "法宝请求过于频繁，请稍后再试。" }), artifactRouter);
 
   if (isDebugApiEnabled()) {
     app.use("/api/debug", createRateLimit({ windowMs: 60_000, maxRequests: 120, message: "调试请求过于频繁，请稍后再试。" }), debugRouter);

@@ -1,4 +1,4 @@
-export type ItemType = "material" | "pill" | "junk";
+export type ItemType = "material" | "pill" | "junk" | "artifact";
 
 export type ItemEffect =
   | { type: "restore_qi"; amount: number }
@@ -52,6 +52,24 @@ export const items: Record<string, ItemDefinition> = {
     name: "焦黑丹渣",
     type: "junk",
     description: "炼废后的渣子，闻起来像欠债。"
+  },
+  fentian_ling: {
+    id: "fentian_ling",
+    name: "焚天令",
+    type: "artifact",
+    description: "白璃丹炉炼炉用的旧令牌。装备后,白璃的语气会软三分。"
+  },
+  mieshen_zhen: {
+    id: "mieshen_zhen",
+    name: "灭神针",
+    type: "artifact",
+    description: "从监察密钥上拆下的反制构件。装备后,你在监察相关 NPC 面前更敢出声。"
+  },
+  yinggu_fu: {
+    id: "yinggu_fu",
+    name: "影骨符",
+    type: "artifact",
+    description: "金丹后期才碰得到的尸骨符。装备后,自身波形对天道云更隐形。"
   }
 };
 

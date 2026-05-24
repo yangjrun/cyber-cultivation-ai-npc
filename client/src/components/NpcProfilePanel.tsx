@@ -1,3 +1,5 @@
+import { useGameStore } from "../state/store";
+
 type Mode = "real" | "mock";
 
 type NpcProfilePanelProps = {
@@ -10,6 +12,8 @@ const description = "她的丹炉接着旧城区的灵气废管，炉火是蓝�
 
 export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
   const isReal = mode === "real";
+  const player = useGameStore((state) => state.player);
+  const traitLine = player.visibleTraits.length > 0 ? player.visibleTraits.join(" · ") : "未知波形";
 
   return (
     <aside className="cyber-panel cyber-corner relative overflow-hidden p-5">
@@ -63,7 +67,7 @@ export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
 
       <div className="mt-5 rounded-lg border border-rose-400/25 bg-rose-500/5 p-3 text-[11px] leading-6 text-rose-100">
         <span className="font-semibold tracking-widest text-rose-200">目标：</span>
-        玩家陆玄 · 练气期 · 非法灵根持有者 · 右臂义体残留雷罚灼痕。
+        玩家{player.name} · {player.realm} · {traitLine}。
       </div>
     </aside>
   );

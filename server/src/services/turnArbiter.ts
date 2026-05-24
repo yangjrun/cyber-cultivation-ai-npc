@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { requestLlm } from "./llmClient.js";
 import { mockArbiter } from "./mockResponders/arbiter.js";
+import { recordArbiterFallback } from "./observability.js";
 import { extractFirstJsonObject } from "./responseValidator.js";
 import { getNpcProfile } from "./gameState.js";
-import type { ArbiterDecision, SpeakMode } from "../types/chat.js";
+import type { ArbiterDecision, ArbiterSpeaker, SpeakMode } from "../types/chat.js";
 import type { LlmMessage } from "../types/llm.js";
 import type { NpcState } from "../types/npc.js";
 import type { SceneSnapshot } from "../types/scene.js";
@@ -46,7 +47,7 @@ export async function arbitrateTurn(input: ArbiterInput): Promise<ArbiterDecisio
 
     return parseArbiterResponse(raw, input);
   } catch (error) {
-    console.warn("[arbiter] LLM 调用失败，回退到 fallback 决策", error);
+    recordArbiterFallback(error instanceof Error ? error.message : String(error));
     return fallbackDecision(input);
   }
 }
@@ -149,9 +150,9 @@ function fallbackDecision(input: ArbiterInput): ArbiterDecision {
 
   const speakers = [input.targetNpcId, ...sceneNpcIds.filter((id) => id !== input.targetNpcId)]
     .slice(0, 2)
-    .map((npcId, index) => ({
+    .map((npcId, index): ArbiterSpeaker => ({
       npcId,
-      mode: (index === 0 ? "speak" : "interrupt") satisfies SpeakMode
+      mode: index === 0 ? "speak" : "interrupt"
     }));
 
   return {

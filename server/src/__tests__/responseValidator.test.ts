@@ -33,7 +33,7 @@ describe("responseValidator", () => {
 
   it("normalizes dialogue and truncates overlong sentence", () => {
     const result = validateLlmResponse(JSON.stringify({
-      dialogue: ` \"${longDialogue}\"\n`,
+      dialogue: ` "${longDialogue}"\n`,
       tone: "试探",
       intent: { type: "none", params: {} },
       state_delta: { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 },

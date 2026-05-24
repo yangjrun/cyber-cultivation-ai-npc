@@ -23,6 +23,10 @@ describe("migrations", () => {
       "active_scene",
       "npc_personality",
       "background_scene_events",
+      "world_state",
+      "unlocked_milestones",
+      "run_chronicles",
+      "equipped_artifacts",
       "schema_migrations"
     ]));
 
@@ -38,7 +42,15 @@ describe("migrations", () => {
     const versions = (db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as Array<{ version: string }>)
       .map((row) => row.version);
 
-    expect(versions).toEqual(["001_init", "002_cultivation", "003_world", "004_personality", "005_background_events"]);
+    expect(versions).toEqual([
+      "001_init",
+      "002_cultivation",
+      "003_world",
+      "004_personality",
+      "005_background_events",
+      "006_storyline",
+      "007_artifacts"
+    ]);
 
     db.close();
   });
@@ -59,6 +71,14 @@ describe("migrations", () => {
       .run(sessionId, "baili", "[]", "{}", now);
     db.prepare("INSERT INTO background_scene_events (session_id, scene_id, player_absent_since, daily_count_date, daily_count) VALUES (?, ?, ?, ?, ?)")
       .run(sessionId, "thunder_tavern", now, now.slice(0, 10), 1);
+    db.prepare("INSERT INTO world_state (session_id, flag_key, value, updated_at) VALUES (?, ?, ?, ?)")
+      .run(sessionId, "completed_trades", 3, now);
+    db.prepare("INSERT INTO unlocked_milestones (session_id, milestone_id, unlocked_at) VALUES (?, ?, ?)")
+      .run(sessionId, "market_regular", now);
+    db.prepare("INSERT INTO run_chronicles (session_id, content, milestones_snapshot, created_at) VALUES (?, ?, ?, ?)")
+      .run(sessionId, "...", "[]", now);
+    db.prepare("INSERT INTO equipped_artifacts (session_id, item_id, equipped_at) VALUES (?, ?, ?)")
+      .run(sessionId, "fentian_ling", now);
 
     db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 
@@ -66,11 +86,19 @@ describe("migrations", () => {
     const scenes = db.prepare("SELECT * FROM active_scene WHERE session_id = ?").all(sessionId);
     const personality = db.prepare("SELECT * FROM npc_personality WHERE session_id = ?").all(sessionId);
     const backgroundEvents = db.prepare("SELECT * FROM background_scene_events WHERE session_id = ?").all(sessionId);
+    const worldState = db.prepare("SELECT * FROM world_state WHERE session_id = ?").all(sessionId);
+    const milestones = db.prepare("SELECT * FROM unlocked_milestones WHERE session_id = ?").all(sessionId);
+    const chronicles = db.prepare("SELECT * FROM run_chronicles WHERE session_id = ?").all(sessionId);
+    const equippedArtifacts = db.prepare("SELECT * FROM equipped_artifacts WHERE session_id = ?").all(sessionId);
 
     expect(quests).toEqual([]);
     expect(scenes).toEqual([]);
     expect(personality).toEqual([]);
     expect(backgroundEvents).toEqual([]);
+    expect(worldState).toEqual([]);
+    expect(milestones).toEqual([]);
+    expect(chronicles).toEqual([]);
+    expect(equippedArtifacts).toEqual([]);
 
     db.close();
   });

@@ -12,9 +12,19 @@ import { validateChatRequest, validateResetRequest } from "../schemas/chat.js";
 import type { ChatReply, ChatResponseBody, InputMode } from "../types/chat.js";
 import type { NpcState } from "../types/npc.js";
 import type { PlayerState } from "../types/player.js";
+import type { SceneSnapshot } from "../types/scene.js";
 
 const NARRATOR_NPC_ID = "narrator";
-const EMPTY_NPC_STATE = { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 } as const;
+const EMPTY_NPC_STATE: NpcState = { trust: 0, fear: 0, anger: 0, tianDaoAlert: 0 };
+
+type TurnContext = {
+  sessionId: string;
+  npcId: string;
+  playerInput: string;
+  player: PlayerState;
+  activeSceneId: string;
+  scene: SceneSnapshot | undefined;
+};
 
 export const chatRouter = Router();
 
@@ -60,133 +70,153 @@ chatRouter.post("/", async (req, res, next) => {
       return;
     }
 
-    const player = resolvePlayer(sessionId);
     const activeSceneId = getActiveSceneId(sessionId);
-    const scene = getSceneSnapshot(sessionId, activeSceneId) ?? undefined;
-
-    if (mode === "dialogue") {
-      const groupChat = await orchestrateGroupChatTurn({
-        sessionId,
-        targetNpcId: npcId,
-        player,
-        playerInput,
-        scene
-      });
-
-      if (groupChat.replies.length === 0) {
-        const silenceReply: ChatReply = {
-          npcId: NARRATOR_NPC_ID,
-          dialogue: "场内一片安静，只有义体风铃在响。",
-          tone: "环境",
-          intent: { type: "none", params: {} },
-          state: { ...EMPTY_NPC_STATE },
-          memoryAdded: "",
-          actionResult: "",
-          kind: "dialogue",
-          actions: []
-        };
-
-        const silenceBody: ChatResponseBody = {
-          dialogue: silenceReply.dialogue,
-          tone: silenceReply.tone,
-          intent: silenceReply.intent,
-          state: silenceReply.state,
-          memoryAdded: silenceReply.memoryAdded,
-          actionResult: silenceReply.actionResult,
-          player,
-          replies: [silenceReply],
-          mode,
-          groupChat: {
-            sceneId: activeSceneId,
-            speakerOrder: [NARRATOR_NPC_ID],
-            ...(groupChat.arbiterRationale ? { arbiterRationale: groupChat.arbiterRationale } : {})
-          }
-        };
-
-        res.json(silenceBody);
-        return;
-      }
-
-      const [firstReply] = groupChat.replies;
-
-      if (!firstReply) {
-        throw new Error("NPC response missing");
-      }
-
-      const responseBody: ChatResponseBody = {
-        dialogue: firstReply.dialogue,
-        tone: firstReply.tone,
-        intent: firstReply.intent,
-        state: firstReply.state,
-        memoryAdded: firstReply.memoryAdded,
-        actionResult: firstReply.actionResult,
-        player: resolvePlayer(sessionId),
-        replies: groupChat.replies,
-        mode,
-        groupChat: {
-          sceneId: activeSceneId,
-          speakerOrder: groupChat.speakerOrder,
-          ...(groupChat.partialFailure ? { partialFailure: true } : {}),
-          ...(groupChat.arbiterRationale ? { arbiterRationale: groupChat.arbiterRationale } : {})
-        }
-      };
-
-      res.json(responseBody);
-      return;
-    }
-
-    const scopedNpcId = makeScopedNpcId(sessionId, npcId);
-    let narrationText = playerInput;
-    let affectedStates: Record<string, NpcState> | undefined;
-
-    if (mode === "monologue") {
-      const echoResult = await echoMonologue({ sessionId, playerInput, scene });
-      narrationText = echoResult.narration;
-      if (Object.keys(echoResult.affectedStates).length > 0) {
-        affectedStates = echoResult.affectedStates;
-      }
-    } else if (mode === "action") {
-      const actionResult = await resolveAction({ sessionId, playerInput, scene });
-      narrationText = actionResult.narration;
-      if (Object.keys(actionResult.affectedStates).length > 0) {
-        affectedStates = actionResult.affectedStates;
-      }
-    }
-
-    const narratorReply: ChatReply = {
-      npcId: NARRATOR_NPC_ID,
-      dialogue: narrationText,
-      tone: mode === "action" ? "旁白" : "心声",
-      intent: { type: "none", params: {} },
-      state: getNpcState(scopedNpcId) ?? { ...EMPTY_NPC_STATE },
-      memoryAdded: "",
-      actionResult: "",
-      kind: mode,
-      actions: [],
-      ...(affectedStates ? { affectedStates } : {})
+    const ctx: TurnContext = {
+      sessionId,
+      npcId,
+      playerInput,
+      player: resolvePlayer(sessionId),
+      activeSceneId,
+      scene: getSceneSnapshot(sessionId, activeSceneId) ?? undefined
     };
 
-    const responseBody: ChatResponseBody = {
-      dialogue: narratorReply.dialogue,
-      tone: narratorReply.tone,
-      intent: narratorReply.intent,
-      state: narratorReply.state,
-      memoryAdded: narratorReply.memoryAdded,
-      actionResult: narratorReply.actionResult,
-      player,
-      replies: [narratorReply],
-      mode,
-      groupChat: {
-        sceneId: activeSceneId,
-        speakerOrder: [NARRATOR_NPC_ID]
-      }
-    };
+    const body = mode === "dialogue"
+      ? await handleDialogueTurn(ctx)
+      : mode === "monologue"
+        ? await handleMonologueTurn(ctx)
+        : await handleActionTurn(ctx);
 
-    res.json(responseBody);
+    res.json(body);
   } catch (error) {
     next(error);
   }
 });
+
+async function handleDialogueTurn(ctx: TurnContext): Promise<ChatResponseBody> {
+  const groupChat = await orchestrateGroupChatTurn({
+    sessionId: ctx.sessionId,
+    targetNpcId: ctx.npcId,
+    player: ctx.player,
+    playerInput: ctx.playerInput,
+    scene: ctx.scene
+  });
+
+  if (groupChat.replies.length === 0) {
+    return buildSilenceBody(ctx, groupChat.arbiterRationale);
+  }
+
+  const [firstReply] = groupChat.replies;
+  if (!firstReply) {
+    throw new Error("NPC response missing");
+  }
+
+  return {
+    dialogue: firstReply.dialogue,
+    tone: firstReply.tone,
+    intent: firstReply.intent,
+    state: firstReply.state,
+    memoryAdded: firstReply.memoryAdded,
+    actionResult: firstReply.actionResult,
+    player: resolvePlayer(ctx.sessionId),
+    replies: groupChat.replies,
+    mode: "dialogue",
+    groupChat: {
+      sceneId: ctx.activeSceneId,
+      speakerOrder: groupChat.speakerOrder,
+      ...(groupChat.partialFailure ? { partialFailure: true } : {}),
+      ...(groupChat.arbiterRationale ? { arbiterRationale: groupChat.arbiterRationale } : {})
+    }
+  };
+}
+
+async function handleMonologueTurn(ctx: TurnContext): Promise<ChatResponseBody> {
+  const echo = await echoMonologue({
+    sessionId: ctx.sessionId,
+    playerInput: ctx.playerInput,
+    scene: ctx.scene
+  });
+  const affectedStates = Object.keys(echo.affectedStates).length > 0 ? echo.affectedStates : undefined;
+  return buildNarratorBody(ctx, "monologue", echo.narration, "心声", affectedStates);
+}
+
+async function handleActionTurn(ctx: TurnContext): Promise<ChatResponseBody> {
+  const action = await resolveAction({
+    sessionId: ctx.sessionId,
+    playerInput: ctx.playerInput,
+    scene: ctx.scene
+  });
+  const affectedStates = Object.keys(action.affectedStates).length > 0 ? action.affectedStates : undefined;
+  return buildNarratorBody(ctx, "action", action.narration, "旁白", affectedStates);
+}
+
+function buildSilenceBody(ctx: TurnContext, arbiterRationale: string | undefined): ChatResponseBody {
+  const silenceReply: ChatReply = {
+    npcId: NARRATOR_NPC_ID,
+    dialogue: "场内一片安静，只有义体风铃在响。",
+    tone: "环境",
+    intent: { type: "none", params: {} },
+    state: { ...EMPTY_NPC_STATE },
+    memoryAdded: "",
+    actionResult: "",
+    kind: "dialogue",
+    actions: []
+  };
+
+  return {
+    dialogue: silenceReply.dialogue,
+    tone: silenceReply.tone,
+    intent: silenceReply.intent,
+    state: silenceReply.state,
+    memoryAdded: silenceReply.memoryAdded,
+    actionResult: silenceReply.actionResult,
+    player: ctx.player,
+    replies: [silenceReply],
+    mode: "dialogue",
+    groupChat: {
+      sceneId: ctx.activeSceneId,
+      speakerOrder: [NARRATOR_NPC_ID],
+      ...(arbiterRationale ? { arbiterRationale } : {})
+    }
+  };
+}
+
+function buildNarratorBody(
+  ctx: TurnContext,
+  mode: Exclude<InputMode, "dialogue">,
+  narration: string,
+  tone: string,
+  affectedStates: Record<string, NpcState> | undefined
+): ChatResponseBody {
+  const scopedNpcId = makeScopedNpcId(ctx.sessionId, ctx.npcId);
+  const narratorReply: ChatReply = {
+    npcId: NARRATOR_NPC_ID,
+    dialogue: narration,
+    tone,
+    intent: { type: "none", params: {} },
+    state: getNpcState(scopedNpcId) ?? { ...EMPTY_NPC_STATE },
+    memoryAdded: "",
+    actionResult: "",
+    kind: mode,
+    actions: [],
+    ...(affectedStates ? { affectedStates } : {})
+  };
+
+  return {
+    dialogue: narratorReply.dialogue,
+    tone: narratorReply.tone,
+    intent: narratorReply.intent,
+    state: narratorReply.state,
+    memoryAdded: narratorReply.memoryAdded,
+    actionResult: narratorReply.actionResult,
+    player: ctx.player,
+    replies: [narratorReply],
+    mode,
+    groupChat: {
+      sceneId: ctx.activeSceneId,
+      speakerOrder: [NARRATOR_NPC_ID]
+    }
+  };
+}
 
 function resolvePlayer(sessionId: string): PlayerState {
   const player = getPlayer(sessionId);

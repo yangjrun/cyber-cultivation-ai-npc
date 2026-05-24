@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { blobToVector, cosineSimilarity, EMBEDDING_DIM, getDefaultProvider, vectorToBlob } from "../services/embedding/index.js";
 
 describe("embedding/hashProvider", () => {
@@ -77,5 +77,57 @@ describe("embedding/hashProvider", () => {
     const b = new Float32Array([1, 0, 0]);
 
     expect(() => cosineSimilarity(a, b)).toThrow();
+  });
+});
+
+describe("embedding/getDefaultProvider", () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    delete process.env.EMBEDDING_PROVIDER;
+    delete process.env.OPENAI_EMBEDDING_API_KEY;
+    delete process.env.OPENAI_EMBEDDING_BASE_URL;
+    delete process.env.LLM_API_KEY;
+    delete process.env.LLM_BASE_URL;
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it("returns hash provider when EMBEDDING_PROVIDER is unset", () => {
+    expect(getDefaultProvider().name).toBe("hash");
+  });
+
+  it("returns hash provider when EMBEDDING_PROVIDER=hash", () => {
+    process.env.EMBEDDING_PROVIDER = "hash";
+    expect(getDefaultProvider().name).toBe("hash");
+  });
+
+  it("returns openai provider when EMBEDDING_PROVIDER=openai and keys are configured", () => {
+    process.env.EMBEDDING_PROVIDER = "openai";
+    process.env.LLM_API_KEY = "test-key";
+    process.env.LLM_BASE_URL = "https://relay.example.com/v1";
+    expect(getDefaultProvider().name).toBe("openai");
+  });
+
+  it("falls back to hash when EMBEDDING_PROVIDER=openai but keys missing", () => {
+    process.env.EMBEDDING_PROVIDER = "openai";
+    // no LLM_API_KEY or OPENAI_EMBEDDING_API_KEY
+    expect(getDefaultProvider().name).toBe("hash");
+  });
+
+  it("prefers OPENAI_EMBEDDING_* over LLM_* when both are set", () => {
+    process.env.EMBEDDING_PROVIDER = "openai";
+    process.env.OPENAI_EMBEDDING_API_KEY = "embed-key";
+    process.env.OPENAI_EMBEDDING_BASE_URL = "https://embed.example.com/v1";
+    // No LLM_* fallback needed
+    expect(getDefaultProvider().name).toBe("openai");
+  });
+
+  it("throws on unknown EMBEDDING_PROVIDER value", () => {
+    process.env.EMBEDDING_PROVIDER = "voyage";
+    expect(() => getDefaultProvider()).toThrow(/Unsupported EMBEDDING_PROVIDER/);
   });
 });

@@ -2,10 +2,9 @@ import { Router } from "express";
 import { getAlchemyRecipe } from "../data/alchemyRecipes.js";
 import { getItemDefinition } from "../data/items.js";
 import { getDb } from "../db/connection.js";
-import { applyStateDelta, getNpcState } from "../services/gameState.js";
-import { addItem, consumeItems, getInventory, getItemQuantity } from "../services/inventoryStore.js";
+import { addItem, consumeItems, getItemQuantity } from "../services/inventoryStore.js";
 import { calculateAlchemyRefine } from "../services/alchemyEngine.js";
-import { getPlayer, sessionExists, updatePlayer } from "../services/playerStore.js";
+import { getPlayer, sessionExists } from "../services/playerStore.js";
 import { validateRefineBody } from "../schemas/alchemy.js";
 
 export const alchemyRouter = Router();

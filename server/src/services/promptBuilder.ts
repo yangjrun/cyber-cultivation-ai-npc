@@ -24,6 +24,8 @@ export type UserTurnInput = {
   npcState?: NpcState;
   scene?: SceneSnapshot;
   activeQuests?: QuestProgress[];
+  equippedArtifactTags?: string[];
+  artifactHints?: string[];
 };
 
 export type PromptInput = {
@@ -34,6 +36,8 @@ export type PromptInput = {
   player: PlayerState;
   scene?: SceneSnapshot;
   activeQuests?: QuestProgress[];
+  equippedArtifactTags?: string[];
+  artifactHints?: string[];
 };
 
 export type PriorNpcReply = {
@@ -122,9 +126,12 @@ export function buildUserTurn(input: UserTurnInput): string {
   const profile = getNpcProfile(input.npcId);
   const state = input.npcState ?? getNpcState(input.scopedNpcId);
   const memoryText = input.memories.length > 0 ? input.memories.map((memory) => `- ${memory}`).join("\n") : "无";
-  const playerNarrative = buildPlayerNarrative(input.player, profile.name);
+  const playerNarrative = buildPlayerNarrative(input.player, profile.name, input.equippedArtifactTags ?? []);
   const sceneSection = input.scene ? buildSceneSection(input.scene, input.npcId) : "";
   const questSection = buildQuestSection(input.activeQuests ?? [], profile.name);
+  const artifactHintSection = (input.artifactHints ?? []).length > 0
+    ? `${profile.name}注意到的法宝细节：\n${(input.artifactHints ?? []).map((hint) => `- ${hint}`).join("\n")}`
+    : "";
   const name = profile.name;
 
   const sections = [
@@ -143,6 +150,7 @@ export function buildUserTurn(input: UserTurnInput): string {
     `${name}记得的最近事件：`,
     memoryText,
     questSection,
+    artifactHintSection,
     "",
     `${name}刚听到对方说：`,
     input.playerInput
@@ -160,7 +168,9 @@ export function buildPrompt(input: PromptInput): string {
     memories: input.memories,
     player: input.player,
     scene: input.scene,
-    activeQuests: input.activeQuests
+    activeQuests: input.activeQuests,
+    equippedArtifactTags: input.equippedArtifactTags,
+    artifactHints: input.artifactHints
   });
 
   return `${systemPrompt}\n\n${userTurn}`;
@@ -178,7 +188,9 @@ export function buildPromptMessages(input: PromptMessagesInput): LlmMessage[] {
       memories: input.memories,
       player: input.player,
       scene: input.scene,
-      activeQuests: input.activeQuests
+      activeQuests: input.activeQuests,
+      equippedArtifactTags: input.equippedArtifactTags,
+      artifactHints: input.artifactHints
     })
   ].filter((section) => section !== "");
 
@@ -315,10 +327,11 @@ function buildQuestSection(quests: QuestProgress[], name: string): string {
   return `\n${name}相关的进行中任务：\n${lines}`;
 }
 
-function buildPlayerNarrative(player: PlayerState, npcName: string): string {
+function buildPlayerNarrative(player: PlayerState, npcName: string, equippedArtifactTags: string[]): string {
   const tags = [
     player.hasIllegalChip ? "持有非法灵根芯片" : "灵根登记干净",
     ...player.visibleTraits,
+    ...equippedArtifactTags,
     player.recentActions.length > 0
       ? `最近做过：${player.recentActions.join("，")}`
       : "最近没做过值得记的事"
