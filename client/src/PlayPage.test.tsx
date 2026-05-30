@@ -10,8 +10,8 @@ const mockPlayer = {
   sessionId: "session-1",
   name: "陆玄",
   realm: "练气期",
-  hasIllegalChip: true,
-  visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"],
+  hasIllegalSeal: true,
+  visibleTraits: ["右臂经脉", "雷罚残痕", "非法灵根烙印"],
   recentActions: ["救过白璃的药童"],
   spiritStones: 0,
   qiCurrent: 0,
@@ -74,7 +74,7 @@ describe("PlayPage scene + NPC navigation", () => {
     window.localStorage.clear();
     // Pre-seed a stored sessionId so App auto-restores the session without
     // routing through CharacterCreatorPage.
-    window.localStorage.setItem("cyber-cultivation.sessionId", "session-1");
+    window.localStorage.setItem("lower-city.sessionId", "session-1");
     resetGameStoreForTests();
     mockSwitchScene.mockClear();
     vi.stubGlobal("fetch", createFetchMock());

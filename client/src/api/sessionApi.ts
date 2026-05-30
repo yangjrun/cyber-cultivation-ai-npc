@@ -15,12 +15,14 @@ export type ItemDefinition = {
   name: string;
   type: "material" | "pill" | "junk" | "artifact";
   description: string;
+  basePrice: number;
   effect?: ItemEffect;
 };
 
 export type InventoryItem = {
   itemId: string;
   quantity: number;
+  quality?: "common" | "fine" | "perfect";
   item: ItemDefinition | null;
 };
 
@@ -29,7 +31,7 @@ export type PlayerState = {
   sessionId: string;
   name: string;
   realm: string;
-  hasIllegalChip: boolean;
+  hasIllegalSeal: boolean;
   visibleTraits: string[];
   recentActions: string[];
   spiritStones: number;
@@ -75,8 +77,8 @@ export const defaultPlayer: PlayerState = {
   sessionId: "",
   name: "陆玄",
   realm: "练气期",
-  hasIllegalChip: true,
-  visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"],
+  hasIllegalSeal: true,
+  visibleTraits: ["右臂经脉", "雷罚残痕", "非法灵根烙印"],
   recentActions: ["救过白璃的药童"],
   spiritStones: 0,
   qiCurrent: 0,
@@ -158,7 +160,7 @@ export function normalizePlayer(raw: unknown, fallbackSessionId = "", fallbackPl
     sessionId: normalizeString(record.sessionId) || fallbackSessionId,
     name: normalizeString(record.name) || defaultPlayer.name,
     realm: normalizeString(record.realm) || defaultPlayer.realm,
-    hasIllegalChip: typeof record.hasIllegalChip === "boolean" ? record.hasIllegalChip : defaultPlayer.hasIllegalChip,
+    hasIllegalSeal: typeof record.hasIllegalSeal === "boolean" ? record.hasIllegalSeal : defaultPlayer.hasIllegalSeal,
     visibleTraits: normalizeStringArray(record.visibleTraits, defaultPlayer.visibleTraits),
     recentActions: normalizeStringArray(record.recentActions, defaultPlayer.recentActions),
     spiritStones: normalizeNumber(record.spiritStones, defaultPlayer.spiritStones),
@@ -190,11 +192,15 @@ export function normalizeInventory(raw: unknown): InventoryItem[] {
       return [];
     }
 
-    return [{ itemId, quantity, item: normalizeItemDefinition(entry.item) }];
+    const quality = entry.quality === "common" || entry.quality === "fine" || entry.quality === "perfect"
+      ? entry.quality
+      : undefined;
+
+    return [{ itemId, quantity, quality, item: normalizeItemDefinition(entry.item) }];
   });
 }
 
-function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
+export function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
   if (!isRecord(raw)) {
     return null;
   }
@@ -212,6 +218,7 @@ function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
     name,
     type: type as ItemDefinition["type"],
     description: normalizeString(raw.description),
+    basePrice: normalizeNumber(raw.basePrice, 0),
     effect: normalizeEffect(raw.effect)
   };
 }

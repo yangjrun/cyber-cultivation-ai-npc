@@ -1,4 +1,5 @@
 import { getQuestDefinition } from "../data/quests.js";
+import { getItemDefinition } from "../data/items.js";
 import { techniques } from "../data/techniques.js";
 import { allowedIntents } from "./gameState.js";
 import type { IntentType, NpcIntent, NpcStateDelta } from "../types/npc.js";
@@ -173,6 +174,20 @@ function normalizeIntent(value: unknown): NpcIntent {
     }
 
     return { type: "none", params: {} };
+  }
+
+  if (type === "offer_trade" || type === "complete_trade") {
+    const params = isRecord(value.params) ? value.params : {};
+    const rawItemId = typeof params.itemId === "string" ? params.itemId.trim() : "";
+    const rawQuantity = typeof params.quantity === "number" ? params.quantity : 1;
+    const quantity = Number.isFinite(rawQuantity) ? Math.min(99, Math.max(1, Math.trunc(rawQuantity))) : 1;
+    const itemId = rawItemId && getItemDefinition(rawItemId) ? rawItemId : null;
+
+    if (itemId) {
+      return { type, params: { itemId, quantity } };
+    }
+
+    return { type, params: {} };
   }
 
   return {

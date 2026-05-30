@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listMemories, type StoredMemory } from "../api/memoryApi";
 import { getPersonality, resetPersonality, type PersonalityRecord } from "../api/personalityApi";
@@ -73,10 +73,10 @@ export function MemoryCrystalPage() {
   };
 
   return (
-    <section className="cyber-panel cyber-corner mx-auto max-w-3xl space-y-4 p-6">
+    <section className="cultivation-panel cultivation-corner mx-auto max-w-3xl space-y-4 p-6">
       <header className="flex items-end justify-between border-b border-cyan-400/15 pb-3">
         <div>
-          <h1 className="text-lg font-semibold text-cyan-50 cyber-glow-text">记忆水晶</h1>
+          <h1 className="text-lg font-semibold text-cyan-50 cultivation-glow-text">记忆水晶</h1>
           <p className="mt-1 text-[10px] uppercase tracking-[0.35em] text-cyan-200/60">
             // memory_crystal · 显示 NPC 记得你的什么 + 人格演化
           </p>

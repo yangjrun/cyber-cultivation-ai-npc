@@ -113,7 +113,9 @@ export const createChatSlice: StateCreator<GameStore, [], [], ChatActions> = (se
           messagesByNpc: appendMessages(state.messagesByNpc, activeNpcId, npcMessages),
           npcStates: nextNpcStates,
           player: response.player,
+          inventory: response.inventory,
           lastIntent: response.intent.type,
+          lastIntentParams: response.intent.params,
           lastActionResult: response.actionResult,
           memoriesByNpc: nextMemories
         };

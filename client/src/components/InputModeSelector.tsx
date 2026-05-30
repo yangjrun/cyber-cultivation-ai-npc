@@ -1,4 +1,4 @@
-import type { InputMode } from "../api/chatApi";
+﻿import type { InputMode } from "../api/chatApi";
 
 type InputModeSelectorProps = {
   value: InputMode;
@@ -36,7 +36,7 @@ const MODE_OPTIONS: ModeOption[] = [
     mode: "monologue",
     label: "心声",
     emoji: "🤔",
-    hint: "自言自语，NPC 不接话（但可能被天道云听见）",
+    hint: "自言自语，NPC 不接话（但可能被天道镜听见）",
     active: "border-violet-300/80 bg-violet-500/15 text-violet-50",
     idle: "border-violet-400/30 bg-violet-500/5 text-violet-100 hover:border-violet-300/60 hover:bg-violet-500/10"
   }

@@ -1,4 +1,4 @@
-import { useGameStore } from "../state/store";
+﻿import { useGameStore } from "../state/store";
 import type { QuestProgress } from "../api/questApi";
 
 const STATUS_LABEL: Record<QuestProgress["status"], string> = {
@@ -23,7 +23,7 @@ export function QuestLog() {
   const finished = quests.filter((q) => q.status === "completed" || q.status === "failed");
 
   return (
-    <section className="cyber-panel cyber-corner space-y-3 p-4">
+    <section className="cultivation-panel cultivation-corner space-y-3 p-4">
       <header className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-amber-300/80">
         <span>// quest_log</span>
         <span>active {active.length} · done {finished.length}</span>
@@ -45,11 +45,19 @@ export function QuestLog() {
 function QuestEntry({ quest }: { quest: QuestProgress }) {
   const title = quest.definition?.title ?? quest.questId;
   const description = quest.definition?.description ?? "";
+  const cooldownLabel = formatCooldown(quest);
 
   return (
     <li className={`rounded-md border p-2 ${STATUS_TONE[quest.status]}`}>
       <div className="flex items-center justify-between text-xs">
-        <span className="font-semibold">{title}</span>
+        <span className="font-semibold">
+          {title}
+          {quest.repeatable ? (
+            <span className="ml-2 rounded border border-emerald-300/40 px-1 py-0.5 text-[9px] uppercase tracking-wider text-emerald-200">
+              委托
+            </span>
+          ) : null}
+        </span>
         <span className="font-mono text-[10px] uppercase tracking-[0.3em]">
           {STATUS_LABEL[quest.status]}
         </span>
@@ -59,6 +67,32 @@ function QuestEntry({ quest }: { quest: QuestProgress }) {
           {description}
         </p>
       ) : null}
+      {cooldownLabel ? (
+        <p className="mt-1 text-[10px] text-emerald-300/70">{cooldownLabel}</p>
+      ) : null}
     </li>
   );
+}
+
+function formatCooldown(quest: QuestProgress): string | null {
+  if (!quest.repeatable || quest.status !== "completed" || !quest.nextAvailableAt) {
+    return null;
+  }
+
+  const nextAvailable = new Date(quest.nextAvailableAt).getTime();
+  const now = Date.now();
+
+  if (now >= nextAvailable) {
+    return "可再次接取";
+  }
+
+  const remainingMs = nextAvailable - now;
+  const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+  const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+
+  if (hours > 0) {
+    return `冷却中 · 约 ${hours} 小时后可再接`;
+  }
+
+  return `冷却中 · 约 ${minutes} 分钟后可再接`;
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { useGameStore } from "../state/store";
 
 export function ArtifactPanel() {
@@ -14,14 +14,14 @@ export function ArtifactPanel() {
   }, [sessionId, refresh]);
 
   return (
-    <section className="cyber-panel cyber-corner relative overflow-hidden p-4">
+    <section className="cultivation-panel cultivation-corner relative overflow-hidden p-4">
       <header className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-amber-300/80">
         <span>// artifacts</span>
         <span>{artifacts.length}</span>
       </header>
 
       {loading && artifacts.length === 0 ? (
-        <p className="text-xs text-slate-500">扫描法宝...</p>
+        <p className="text-xs text-slate-500">望气法宝...</p>
       ) : artifacts.length === 0 ? (
         <p className="text-xs text-slate-400">还没拿到任何法宝。让派系记住你,法宝自然会到手。</p>
       ) : (

@@ -1,4 +1,4 @@
-type ActionPanelProps = {
+﻿type ActionPanelProps = {
   actionResult: string;
   intentType: string;
 };
@@ -7,7 +7,7 @@ export function ActionPanel({ actionResult, intentType }: ActionPanelProps) {
   const hasIntent = intentType && intentType !== "none";
 
   return (
-    <section className="cyber-panel cyber-panel--rose cyber-corner relative overflow-hidden p-4">
+    <section className="cultivation-panel cultivation-panel--rose cultivation-corner relative overflow-hidden p-4">
       <header className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-200">
           动作结果

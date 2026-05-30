@@ -23,7 +23,18 @@ export const createCultivationSlice: StateCreator<GameStore, [], [], Cultivation
 
     try {
       const response = await requestCultivate(sessionId, duration);
-      set({ player: response.player, lastCultivationResult: response.message });
+      const capped = response.player.qiCurrent >= response.player.qiCap;
+      const message = response.qiGained > 0
+        ? `+${response.qiGained} 灵气${capped ? "（已满，可尝试突破）" : ""}。`
+        : capped
+          ? "灵气已满，请尝试突破。"
+          : response.message || "打坐完成。";
+      set((state) => ({
+        player: response.player,
+        lastCultivationResult: message,
+        lastBreakthroughResult: "",
+        cultivationResultTick: state.cultivationResultTick + 1
+      }));
       get().appendLog(`打坐完成：+${response.qiGained} 灵气。`);
     } catch {
       set({ error: "修炼链路中断：打坐失败。" });
@@ -51,7 +62,9 @@ export const createCultivationSlice: StateCreator<GameStore, [], [], Cultivation
         npcStates: response.npcState
           ? { ...state.npcStates, [activeNpcId]: response.npcState }
           : state.npcStates,
-        lastBreakthroughResult: response.message
+        lastBreakthroughResult: response.message,
+        lastCultivationResult: "",
+        cultivationResultTick: state.cultivationResultTick + 1
       }));
       get().appendLog(`突破结果：${response.message}`);
     } catch {

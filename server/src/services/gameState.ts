@@ -1,7 +1,12 @@
+import { getItemDefinition } from "../data/items.js";
+import { getSeedStock } from "../data/npcShops.js";
 import { npcProfiles as npcProfilesData } from "../data/npcs.js";
 import { getDb } from "../db/connection.js";
-import { sessionExists } from "./playerStore.js";
+import { addItem } from "./inventoryStore.js";
+import { getPlayer, sessionExists, updatePlayer } from "./playerStore.js";
 import { parseScopedNpcId, scopedNpcId, SCOPED_NPC_SEPARATOR } from "./scopedNpcId.js";
+import { computeBuyUnitPrice, isTradeRefused } from "./tradeEngine.js";
+import { adjustShopBalance, adjustShopStock, getShopItemQuantity } from "./tradeStore.js";
 import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta } from "../types/npc.js";
 
 export const allowedIntents = ["none", "offer_trade", "complete_trade", "teach_technique", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
@@ -78,7 +83,69 @@ export function executeIntent(npcId: string, intent: NpcIntent): string {
   }
 
   if (intent.type === "complete_trade") {
-    return "交易已记录，具体物品以背包结算为准。";
+    const { sessionId, baseNpcId } = parseScopedNpcId(npcId);
+    const tradeParams = intent.params as { itemId?: unknown; quantity?: unknown };
+
+    if (!sessionId) {
+      return "交易上下文丢失，无法结算。";
+    }
+
+    const player = getPlayer(sessionId);
+
+    if (!player) {
+      return "玩家存档异常，无法结算。";
+    }
+
+    const itemId = typeof tradeParams.itemId === "string" ? tradeParams.itemId : "";
+    const quantity = typeof tradeParams.quantity === "number" && Number.isFinite(tradeParams.quantity)
+      ? Math.min(99, Math.max(1, Math.trunc(tradeParams.quantity)))
+      : 1;
+
+    const definition = getItemDefinition(itemId);
+
+    if (!definition) {
+      return `${name}的报价含糊，没指向明确的货物。`;
+    }
+
+    const npcState = getNpcState(npcId);
+    const refusal = isTradeRefused({ trust: npcState.trust, fear: npcState.fear, anger: npcState.anger });
+
+    if (refusal.refused) {
+      return `${name}脸色一沉，这笔生意不做了。`;
+    }
+
+    const shopQuantity = getShopItemQuantity(sessionId, baseNpcId, itemId);
+
+    if (shopQuantity < quantity) {
+      return `${name}翻了翻手头，那个货不够。`;
+    }
+
+    const unitPrice = computeBuyUnitPrice({
+      basePrice: definition.basePrice,
+      npcMood: { trust: npcState.trust, fear: npcState.fear, anger: npcState.anger },
+      npcStock: shopQuantity,
+      referenceStock: getSeedStock(baseNpcId, itemId),
+      cultivationStageIdx: player.cultivationStageIdx
+    });
+    const totalPrice = unitPrice * quantity;
+
+    if (player.spiritStones < totalPrice) {
+      return `${name}嗤了一声——你灵石不够，差 ${totalPrice - player.spiritStones} 枚。`;
+    }
+
+    try {
+      getDb().transaction(() => {
+        adjustShopStock(sessionId, baseNpcId, itemId, -quantity);
+        adjustShopBalance(sessionId, baseNpcId, totalPrice);
+        addItem(sessionId, itemId, quantity);
+        updatePlayer(sessionId, { spiritStones: player.spiritStones - totalPrice });
+        applyStateDelta(npcId, { trust: 1, fear: 0, anger: 0, tianDaoAlert: 0 });
+      })();
+
+      return `${name}与你达成了交易：${definition.name} ×${quantity}，共 ${totalPrice} 灵石。`;
+    } catch {
+      return `结算时灵脉波动，${name}摆了摆手——交易作废。`;
+    }
   }
 
   if (intent.type === "teach_technique") {

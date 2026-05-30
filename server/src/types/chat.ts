@@ -58,6 +58,7 @@ export type ChatResponseBody = {
   memoryAdded: string;
   actionResult: string;
   player: PlayerState;
+  inventory: { itemId: string; quantity: number }[];
   replies: ChatReply[];
   mode: InputMode;
   groupChat: {

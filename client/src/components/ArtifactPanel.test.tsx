@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+﻿import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ArtifactPanel } from "./ArtifactPanel";
 import { resetGameStoreForTests, useGameStore } from "../state/store";
@@ -28,7 +28,7 @@ describe("ArtifactPanel", () => {
   it("shows scanning indicator while loading with no artifacts", () => {
     useGameStore.setState({ sessionId: "s1", artifacts: [], artifactsLoading: true });
     render(<ArtifactPanel />);
-    expect(screen.getByText(/扫描法宝/)).toBeTruthy();
+    expect(screen.getByText(/望气法宝/)).toBeTruthy();
   });
 
   it("shows empty-state copy when no artifacts are owned", () => {

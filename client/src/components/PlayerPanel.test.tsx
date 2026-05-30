@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PlayerPanel } from "./PlayerPanel";
 import { resetGameStoreForTests, useGameStore } from "../state/store";
@@ -51,14 +51,14 @@ describe("PlayerPanel", () => {
     useGameStore.setState({
       player: {
         ...current,
-        visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"]
+        visibleTraits: ["右臂经脉", "雷罚残痕", "非法灵根烙印"]
       }
     });
 
     render(<PlayerPanel />);
-    expect(screen.getByText("右臂义体")).toBeTruthy();
+    expect(screen.getByText("右臂经脉")).toBeTruthy();
     expect(screen.getByText("雷罚残痕")).toBeTruthy();
-    expect(screen.getByText("非法灵根波形")).toBeTruthy();
+    expect(screen.getByText("非法灵根烙印")).toBeTruthy();
   });
 
   it("renders qi pool ratio (qiCurrent/qiCap) in the sublabel", () => {

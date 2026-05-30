@@ -29,9 +29,12 @@ export function createInitialState(): GameState {
     error: "",
     lastActionResult: "",
     lastIntent: "none",
+    lastIntentParams: {},
     lastCultivationResult: "",
     lastBreakthroughResult: "",
     lastAlchemyResult: "",
+    cultivationResultTick: 0,
+    alchemyResultTick: 0,
     alchemyModalOpen: false,
     systemLogs: [createInitialLog()],
     chronicles: [],
@@ -40,7 +43,21 @@ export function createInitialState(): GameState {
     milestonesTotal: 0,
     milestonesLoading: false,
     artifacts: [],
-    artifactsLoading: false
+    artifactsLoading: false,
+    tradeModalOpen: false,
+    tradeNpcId: "",
+    shop: null,
+    tradeLoading: false,
+    lastTradeResult: "",
+    tradeResultTick: 0,
+    gatheringModalOpen: false,
+    gatheringPoints: [],
+    gatheringLoading: false,
+    lastGatheringResult: "",
+    gatheringResultTick: 0,
+    passiveIncomeLoading: false,
+    lastPassiveIncomeResult: "",
+    passiveIncomeResultTick: 0
   };
 }
 

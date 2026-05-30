@@ -4,6 +4,7 @@ import { addItem } from "./inventoryStore.js";
 import { applyRelationDelta } from "./npcRelationsStore.js";
 import { getPlayer, updatePlayer } from "./playerStore.js";
 import { getAllQuestProgressForSession, getQuestProgress, upsertQuestProgress } from "./questStore.js";
+import { evaluateRepeatableAvailability } from "./questCooldown.js";
 import { parseScopedNpcId, scopedNpcId } from "./scopedNpcId.js";
 import type { NpcIntent } from "../types/npc.js";
 import type { QuestDefinition, QuestEffect, QuestProgress, QuestStatus, QuestTrigger } from "../types/quest.js";
@@ -107,6 +108,13 @@ function processQuest(
   const status: QuestStatus = current?.status ?? "available";
 
   if (TERMINAL_STATUSES.has(status)) {
+    // Repeatable quests may be re-accepted once their cooldown elapses.
+    const availability = evaluateRepeatableAvailability(definition, current);
+
+    if (availability.canAccept) {
+      tryAcceptQuest(sessionId, baseNpcId, intent, definition, evaluation);
+    }
+
     return;
   }
 

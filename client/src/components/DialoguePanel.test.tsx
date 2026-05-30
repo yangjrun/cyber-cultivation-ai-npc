@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { DialoguePanel, type ChatMessage } from "./DialoguePanel";
 
@@ -21,7 +21,7 @@ describe("DialoguePanel", () => {
 
   it("shows placeholder when there are no messages", () => {
     render(<DialoguePanel messages={[]} loading={false} />);
-    expect(screen.getByText("丹铺的义体风铃正在低鸣。")).toBeTruthy();
+    expect(screen.getByText("丹铺的符箓风铃正在低鸣。")).toBeTruthy();
   });
 
   it("shows loading indicator when loading=true", () => {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CultivationPanel } from "./CultivationPanel";
@@ -47,7 +47,7 @@ describe("CultivationPanel", () => {
     });
 
     render(<CultivationPanel />);
-    expect(screen.getByText(/天道云警戒过高，突破会触发雷罚反噬/)).toBeTruthy();
+    expect(screen.getByText(/天道镜警戒过高，突破会触发雷罚反噬/)).toBeTruthy();
   });
 
   it("shows breakthrough result preferentially over cultivation result", () => {
@@ -59,5 +59,68 @@ describe("CultivationPanel", () => {
     render(<CultivationPanel />);
     expect(screen.getByText("突破成功，进入筑基初期。")).toBeTruthy();
     expect(screen.queryByText("灵气提升。")).toBeNull();
+  });
+
+  it("disables 打坐 when qiCurrent >= qiCap and shows 灵气已满 hint", () => {
+    const current = useGameStore.getState().player;
+    useGameStore.setState({ player: { ...current, qiCurrent: 100, qiCap: 100 } });
+
+    render(<CultivationPanel />);
+    const cultivateBtn = screen.getByRole("button", { name: /灵气已满/ }) as HTMLButtonElement;
+    expect(cultivateBtn.disabled).toBe(true);
+    expect(screen.getByText(/灵气已满，继续打坐不会再涨/)).toBeTruthy();
+  });
+
+  it("remounts result text when cultivationResultTick changes (forces re-render)", () => {
+    useGameStore.setState({ lastCultivationResult: "+0 灵气。", cultivationResultTick: 1 });
+    const { rerender } = render(<CultivationPanel />);
+    const first = screen.getByTestId("cultivation-result");
+
+    useGameStore.setState({ lastCultivationResult: "+0 灵气。", cultivationResultTick: 2 });
+    rerender(<CultivationPanel />);
+    const second = screen.getByTestId("cultivation-result");
+
+    expect(second).not.toBe(first);
+  });
+
+  it("hides 凝聚灵石 button for 练气期 players (stage idx < 9)", () => {
+    const current = useGameStore.getState().player;
+    useGameStore.setState({ player: { ...current, cultivationStageIdx: 0 } });
+
+    render(<CultivationPanel />);
+    expect(screen.queryByRole("button", { name: /凝聚灵石/ })).toBeNull();
+  });
+
+  it("shows 凝聚灵石 button for 筑基期 and above (stage idx >= 9)", () => {
+    const current = useGameStore.getState().player;
+    useGameStore.setState({ player: { ...current, cultivationStageIdx: 9 } });
+
+    render(<CultivationPanel />);
+    expect(screen.getByRole("button", { name: /凝聚灵石/ })).toBeTruthy();
+  });
+
+  it("clicking 凝聚灵石 fires claimPassiveIncome", async () => {
+    const claimSpy = vi.fn().mockResolvedValue(undefined);
+    const current = useGameStore.getState().player;
+    useGameStore.setState({
+      player: { ...current, cultivationStageIdx: 12 },
+      claimPassiveIncome: claimSpy
+    });
+
+    render(<CultivationPanel />);
+    await userEvent.click(screen.getByRole("button", { name: /凝聚灵石/ }));
+    expect(claimSpy).toHaveBeenCalled();
+  });
+
+  it("shows passive income result text when present", () => {
+    const current = useGameStore.getState().player;
+    useGameStore.setState({
+      player: { ...current, cultivationStageIdx: 9 },
+      lastPassiveIncomeResult: "凝聚了 2 日灵气，入账 10 灵石。"
+    });
+
+    render(<CultivationPanel />);
+    expect(screen.getByTestId("passive-income-result")).toBeTruthy();
+    expect(screen.getByText("凝聚了 2 日灵气，入账 10 灵石。")).toBeTruthy();
   });
 });

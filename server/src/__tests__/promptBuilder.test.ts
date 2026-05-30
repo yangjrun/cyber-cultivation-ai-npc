@@ -51,8 +51,11 @@ describe("promptBuilder", () => {
       expect(buildSystemPrompt({ npcId: "qinggu" })).toContain("verify_suhe_identity");
     });
 
-    it("marks NPCs that do not give quests as 不派任务", () => {
-      expect(buildSystemPrompt({ npcId: "suhe" })).toContain("不派任务");
+    it("lists repeatable commission quest ids in the giver's whitelist", () => {
+      expect(buildSystemPrompt({ npcId: "baili" })).toContain("baili_delivery_run");
+      expect(buildSystemPrompt({ npcId: "suhe" })).toContain("suhe_intel_errand");
+      expect(buildSystemPrompt({ npcId: "chimu" })).toContain("chimu_toll_collection");
+      expect(buildSystemPrompt({ npcId: "qinggu" })).toContain("qinggu_verify_rumor");
     });
   });
 

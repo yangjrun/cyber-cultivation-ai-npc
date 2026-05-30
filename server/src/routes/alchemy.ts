@@ -48,7 +48,9 @@ alchemyRouter.post("/refine", (req, res, next) => {
     const result = getDb().transaction(() => {
       consumeItems(sessionId, recipe.requiredMaterials);
       const outcome = calculateAlchemyRefine(player, recipe, fireLevel);
-      const inventory = addItem(sessionId, outcome.resultItemId, 1);
+      // Save quality for successful alchemy results (not for failed_dregs)
+      const quality = outcome.success ? outcome.quality : undefined;
+      const inventory = addItem(sessionId, outcome.resultItemId, 1, quality);
       getDb().prepare(
         `INSERT INTO alchemy_attempts (session_id, recipe_id, fire_level, quality, success, result_item_id, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`

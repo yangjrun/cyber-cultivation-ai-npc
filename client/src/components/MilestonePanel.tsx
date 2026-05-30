@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { useGameStore } from "../state/store";
 
 export function MilestonePanel() {
@@ -13,7 +13,7 @@ export function MilestonePanel() {
   }, [sessionId, refresh]);
 
   return (
-    <section className="cyber-panel cyber-corner relative overflow-hidden p-4">
+    <section className="cultivation-panel cultivation-corner relative overflow-hidden p-4">
       <header className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-violet-300/80">
         <span>// milestones</span>
         <span>
@@ -23,7 +23,7 @@ export function MilestonePanel() {
       </header>
 
       {loading && milestones.length === 0 ? (
-        <p className="text-xs text-slate-500">扫描中...</p>
+        <p className="text-xs text-slate-500">望气中...</p>
       ) : milestones.length === 0 ? (
         <p className="text-xs text-slate-400">还没刻下任何里程碑。继续走,有人会看见。</p>
       ) : (

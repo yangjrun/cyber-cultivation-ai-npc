@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { getQuestDefinition, listQuestIds } from "../data/quests.js";
 import { sessionExists } from "../services/playerStore.js";
+import { computeNextAvailableAt } from "../services/questCooldown.js";
 import { getAllQuestProgressForSession } from "../services/questStore.js";
 
 export const questRouter = Router();
@@ -39,10 +40,15 @@ questRouter.get("/:sessionId", (req, res, next) => {
     }
 
     const progress = getAllQuestProgressForSession(sessionId);
-    const enriched = progress.map((entry) => ({
-      ...entry,
-      definition: getQuestDefinition(entry.questId)
-    }));
+    const enriched = progress.map((entry) => {
+      const definition = getQuestDefinition(entry.questId);
+      return {
+        ...entry,
+        definition,
+        repeatable: definition?.repeatable ?? false,
+        nextAvailableAt: definition ? computeNextAvailableAt(definition, entry) : null
+      };
+    });
 
     res.json({ quests: enriched });
   } catch (error) {

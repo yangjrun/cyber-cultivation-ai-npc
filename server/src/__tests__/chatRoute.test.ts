@@ -49,7 +49,7 @@ describe("POST /api/chat", () => {
     expect(response.body.dialogue).toBe("能做，但你得先偷一枚监察密钥。");
     expect(response.body.intent).toEqual({ type: "give_quest", params: { quest_id: "steal_inspector_key" } });
     expect(response.body.state).toEqual({ trust: 23, fear: 11, anger: 0, tianDaoAlert: 45 });
-    expect(response.body.memoryAdded).toBe("玩家想要躲避监察院扫描的丹药。");
+    expect(response.body.memoryAdded).toBe("玩家想要躲避监察院望气的丹药。");
     expect(response.body.actionResult).toContain("接受任务：偷一枚监察密钥");
     expect(response.body.player).toMatchObject({ name: "陆玄", qiCurrent: 0, qiCap: 100, spiritStones: 0 });
     expect(response.body.replies).toEqual([
@@ -58,12 +58,12 @@ describe("POST /api/chat", () => {
         dialogue: "能做，但你得先偷一枚监察密钥。",
         intent: { type: "give_quest", params: { quest_id: "steal_inspector_key" } },
         state: { trust: 23, fear: 11, anger: 0, tianDaoAlert: 45 },
-        memoryAdded: "玩家想要躲避监察院扫描的丹药。"
+        memoryAdded: "玩家想要躲避监察院望气的丹药。"
       })
     ]);
     expect(response.body.groupChat).toMatchObject({ sceneId: "black_market", speakerOrder: ["baili"] });
     expect(response.body.groupChat.arbiterRationale).toEqual(expect.any(String));
-    expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(["玩家想要躲避监察院扫描的丹药。"]);
+    expect(getRecentMemories(`${sessionId}::baili`, 5)).toEqual(["玩家想要躲避监察院望气的丹药。"]);
   });
 
   it("updates state for hostile input while keeping values bounded", async () => {

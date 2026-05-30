@@ -5,6 +5,7 @@ import { DEFAULT_SCENE_ID } from "../data/scenes.js";
 import { getDb } from "../db/connection.js";
 import { initializeStarterInventory } from "./inventoryStore.js";
 import { initializeRelationsForSession } from "./npcRelationsStore.js";
+import { initializeShopsForSession } from "./tradeStore.js";
 import type { ElementRoots, PlayerState, RootElement, SessionSnapshot } from "../types/player.js";
 
 export type CreateSessionInput = {
@@ -16,8 +17,8 @@ export type CreateSessionInput = {
 const defaultPlayer = {
   name: "陆玄",
   realm: "练气期",
-  hasIllegalChip: true,
-  visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"],
+  hasIllegalSeal: true,
+  visibleTraits: ["右臂经脉", "雷罚残痕", "非法灵根烙印"],
   recentActions: ["救过白璃的药童"],
   spiritStones: 0,
   qiCurrent: 0,
@@ -27,7 +28,8 @@ const defaultPlayer = {
   activeTechniqueId: "basic_breathing",
   breakthroughBonusUntil: null,
   alertShieldUntil: null,
-  alertShieldStrength: 0
+  alertShieldStrength: 0,
+  passiveIncomeClaimedAt: null
 } as const;
 
 type ResolvedInitialPlayer = {
@@ -58,7 +60,7 @@ type PlayerRow = {
   session_id: string;
   name: string;
   realm: string;
-  has_illegal_chip: number;
+  has_illegal_seal: number;
   visible_traits: string;
   recent_actions: string;
   spirit_stones: number;
@@ -70,6 +72,7 @@ type PlayerRow = {
   breakthrough_bonus_until: string | null;
   alert_shield_until: string | null;
   alert_shield_strength: number;
+  passive_income_claimed_at: string | null;
 };
 
 export type PlayerPatch = Partial<Pick<
@@ -83,7 +86,8 @@ export type PlayerPatch = Partial<Pick<
   "activeTechniqueId" |
   "breakthroughBonusUntil" |
   "alertShieldUntil" |
-  "alertShieldStrength"
+  "alertShieldStrength" |
+  "passiveIncomeClaimedAt"
 >>;
 
 export function createSession(input?: CreateSessionInput): SessionSnapshot {
@@ -103,6 +107,7 @@ export function createSession(input?: CreateSessionInput): SessionSnapshot {
   })();
 
   initializeRelationsForSession(sessionId);
+  initializeShopsForSession(sessionId);
 
   const session = getSession(sessionId);
 
@@ -143,6 +148,7 @@ export function createPlayer(sessionId: string): PlayerState {
   const playerId = randomUUID();
   insertPlayer(sessionId, playerId, createdAt, resolveInitialPlayer());
   initializeStarterInventory(sessionId);
+  initializeShopsForSession(sessionId);
 
   const player = getPlayer(sessionId);
 
@@ -156,9 +162,9 @@ export function createPlayer(sessionId: string): PlayerState {
 export function getPlayer(sessionId: string): PlayerState | null {
   const row = getDb()
     .prepare(
-      `SELECT id, session_id, name, realm, has_illegal_chip, visible_traits, recent_actions,
+      `SELECT id, session_id, name, realm, has_illegal_seal, visible_traits, recent_actions,
         spirit_stones, qi_current, qi_cap, cultivation_stage_idx, roots, active_technique_id,
-        breakthrough_bonus_until, alert_shield_until, alert_shield_strength
+        breakthrough_bonus_until, alert_shield_until, alert_shield_strength, passive_income_claimed_at
        FROM players
        WHERE session_id = ?`
     )
@@ -188,7 +194,8 @@ export function updatePlayer(sessionId: string, patch: PlayerPatch): PlayerState
     activeTechniqueId: patch.activeTechniqueId ?? current.activeTechniqueId,
     breakthroughBonusUntil: patch.breakthroughBonusUntil ?? current.breakthroughBonusUntil,
     alertShieldUntil: patch.alertShieldUntil ?? current.alertShieldUntil,
-    alertShieldStrength: clampInteger(patch.alertShieldStrength ?? current.alertShieldStrength, 0, 100)
+    alertShieldStrength: clampInteger(patch.alertShieldStrength ?? current.alertShieldStrength, 0, 100),
+    passiveIncomeClaimedAt: patch.passiveIncomeClaimedAt ?? current.passiveIncomeClaimedAt
   };
 
   const updatedAt = nowIso();
@@ -196,7 +203,8 @@ export function updatePlayer(sessionId: string, patch: PlayerPatch): PlayerState
     .prepare(
       `UPDATE players
        SET realm = ?, spirit_stones = ?, qi_current = ?, qi_cap = ?, cultivation_stage_idx = ?, roots = ?,
-        active_technique_id = ?, breakthrough_bonus_until = ?, alert_shield_until = ?, alert_shield_strength = ?, updated_at = ?
+        active_technique_id = ?, breakthrough_bonus_until = ?, alert_shield_until = ?, alert_shield_strength = ?,
+        passive_income_claimed_at = ?, updated_at = ?
        WHERE session_id = ?`
     )
     .run(
@@ -210,6 +218,7 @@ export function updatePlayer(sessionId: string, patch: PlayerPatch): PlayerState
       next.breakthroughBonusUntil,
       next.alertShieldUntil,
       next.alertShieldStrength,
+      next.passiveIncomeClaimedAt,
       updatedAt,
       sessionId
     );
@@ -225,17 +234,17 @@ function insertPlayer(sessionId: string, playerId: string, createdAt: string, in
   getDb()
     .prepare(
       `INSERT INTO players (
-        id, session_id, name, realm, has_illegal_chip, visible_traits, recent_actions,
+        id, session_id, name, realm, has_illegal_seal, visible_traits, recent_actions,
         spirit_stones, qi_current, qi_cap, cultivation_stage_idx, roots, active_technique_id,
-        breakthrough_bonus_until, alert_shield_until, alert_shield_strength, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        breakthrough_bonus_until, alert_shield_until, alert_shield_strength, passive_income_claimed_at, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       playerId,
       sessionId,
       initial.name,
       defaultPlayer.realm,
-      defaultPlayer.hasIllegalChip ? 1 : 0,
+      defaultPlayer.hasIllegalSeal ? 1 : 0,
       JSON.stringify(initial.visibleTraits),
       JSON.stringify(initial.recentActions),
       defaultPlayer.spiritStones,
@@ -247,6 +256,7 @@ function insertPlayer(sessionId: string, playerId: string, createdAt: string, in
       defaultPlayer.breakthroughBonusUntil,
       defaultPlayer.alertShieldUntil,
       defaultPlayer.alertShieldStrength,
+      defaultPlayer.passiveIncomeClaimedAt,
       createdAt,
       createdAt
     );
@@ -258,7 +268,7 @@ function mapPlayer(row: PlayerRow): PlayerState {
     sessionId: row.session_id,
     name: row.name,
     realm: row.realm,
-    hasIllegalChip: row.has_illegal_chip === 1,
+    hasIllegalSeal: row.has_illegal_seal === 1,
     visibleTraits: parseStringArray(row.visible_traits),
     recentActions: parseStringArray(row.recent_actions),
     spiritStones: row.spirit_stones,
@@ -269,7 +279,8 @@ function mapPlayer(row: PlayerRow): PlayerState {
     activeTechniqueId: row.active_technique_id,
     breakthroughBonusUntil: row.breakthrough_bonus_until,
     alertShieldUntil: row.alert_shield_until,
-    alertShieldStrength: row.alert_shield_strength
+    alertShieldStrength: row.alert_shield_strength,
+    passiveIncomeClaimedAt: row.passive_income_claimed_at
   };
 }
 

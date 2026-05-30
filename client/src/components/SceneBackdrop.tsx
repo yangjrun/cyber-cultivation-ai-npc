@@ -1,4 +1,4 @@
-import { useGameStore } from "../state/store";
+﻿import { useGameStore } from "../state/store";
 
 const SCENE_GRADIENT: Record<string, string> = {
   black_market: "from-fuchsia-900/40 via-violet-900/30 to-slate-950",
@@ -20,11 +20,11 @@ export function SceneBackdrop() {
 
   return (
     <section
-      className={`cyber-panel cyber-corner overflow-hidden bg-gradient-to-br ${gradient} p-4`}
+      className={`cultivation-panel cultivation-corner overflow-hidden bg-gradient-to-br ${gradient} p-4`}
       aria-label={`场景背景：${scene.name}`}
     >
       <div className="flex items-baseline justify-between">
-        <h2 className="text-base font-semibold text-cyan-50 cyber-glow-text">{scene.name}</h2>
+        <h2 className="text-base font-semibold text-cyan-50 cultivation-glow-text">{scene.name}</h2>
         <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-cyan-200/70">
           {scene.sceneId}
         </span>

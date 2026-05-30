@@ -1,4 +1,4 @@
-import { useGameStore } from "../state/store";
+﻿import { useGameStore } from "../state/store";
 import { RootsRadarChart } from "./RootsRadarChart";
 import { StatBar } from "./StatBar";
 
@@ -14,7 +14,7 @@ export function PlayerPanel() {
   const progressValue = Math.round((player.cultivationStageIdx / Math.max(1, stageLabels.length - 1)) * 100);
 
   return (
-    <section className="cyber-panel cyber-panel--violet cyber-corner relative overflow-hidden p-4">
+    <section className="cultivation-panel cultivation-panel--violet cultivation-corner relative overflow-hidden p-4">
       <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-violet-300/70">
         <span>// player_core</span>
         <span>{player.sessionId ? "online" : "syncing"}</span>

@@ -1,4 +1,4 @@
-import { useGameStore } from "../state/store";
+﻿import { useGameStore } from "../state/store";
 
 type Mode = "real" | "mock";
 
@@ -13,10 +13,10 @@ const description = "她的丹炉接着旧城区的灵气废管，炉火是蓝�
 export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
   const isReal = mode === "real";
   const player = useGameStore((state) => state.player);
-  const traitLine = player.visibleTraits.length > 0 ? player.visibleTraits.join(" · ") : "未知波形";
+  const traitLine = player.visibleTraits.length > 0 ? player.visibleTraits.join(" · ") : "未知灵根";
 
   return (
-    <aside className="cyber-panel cyber-corner relative overflow-hidden p-5">
+    <aside className="cultivation-panel cultivation-corner relative overflow-hidden p-5">
       <div className="mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.4em] text-cyan-300/80">
         <span>九龙下城 · 无相黑市</span>
         <span
@@ -26,20 +26,20 @@ export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
               : "border-amber-400/40 text-amber-100"
           }`}
         >
-          <span className={`cyber-pulse-dot ${isReal ? "" : "!bg-amber-300 !shadow-[0_0_12px_rgba(251,191,36,0.7)]"}`} />
+          <span className={`cultivation-pulse-dot ${isReal ? "" : "!bg-amber-300 !shadow-[0_0_12px_rgba(251,191,36,0.7)]"}`} />
           {isReal ? "LLM ONLINE" : "MOCK MODE"}
         </span>
       </div>
 
       <div className="flex flex-col items-center text-center">
-        <div className="cyber-portrait" aria-label="白璃立绘">
+        <div className="cultivation-portrait" aria-label="白璃立绘">
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl font-bold text-cyan-50 cyber-glow-text">白璃</div>
+            <div className="text-3xl font-bold text-cyan-50 cultivation-glow-text">白璃</div>
             <div className="mt-1 text-[10px] uppercase tracking-[0.45em] text-cyan-200/80">Baili</div>
           </div>
         </div>
 
-        <h1 className="mt-5 text-2xl font-semibold text-white cyber-glow-text">白璃</h1>
+        <h1 className="mt-5 text-2xl font-semibold text-white cultivation-glow-text">白璃</h1>
         <p className="mt-1 text-sm text-cyan-200">黑市炼丹师</p>
         <p className="mt-1 text-xs text-slate-400">九龙下城 · 无相黑市 · 白璃丹铺</p>
         <p className="mt-2 inline-flex items-center rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-0.5 text-[11px] text-violet-100">

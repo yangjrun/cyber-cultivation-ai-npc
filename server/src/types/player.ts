@@ -6,7 +6,7 @@ export type PlayerProfile = {
   id: string;
   sessionId: string;
   name: string;
-  hasIllegalChip: boolean;
+  hasIllegalSeal: boolean;
   visibleTraits: string[];
   recentActions: string[];
 };
@@ -22,6 +22,7 @@ export type PlayerState = PlayerProfile & {
   breakthroughBonusUntil: string | null;
   alertShieldUntil: string | null;
   alertShieldStrength: number;
+  passiveIncomeClaimedAt: string | null;
 };
 
 export type SessionSnapshot = {

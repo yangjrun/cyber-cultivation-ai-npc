@@ -1,6 +1,6 @@
 import { createSession, getSession } from "../api/sessionApi";
 import type { ChatMessage } from "../components/DialoguePanel";
-import { MAX_INPUT, MAX_MEMORIES, NPC_NAMES, STORAGE_KEY } from "./constants";
+import { LEGACY_STORAGE_KEY, MAX_INPUT, MAX_MEMORIES, NPC_NAMES, STORAGE_KEY } from "./constants";
 import type { GameStore } from "./types";
 import type { InputMode } from "../api/chatApi";
 
@@ -76,6 +76,21 @@ export function writeStoredSessionId(sessionId: string): void {
     window.localStorage.setItem(STORAGE_KEY, sessionId);
   } catch {
     // localStorage can be unavailable in hardened browser contexts.
+  }
+}
+
+export function migrateLegacyStorageKey(): void {
+  try {
+    const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!legacy) {
+      return;
+    }
+    if (!window.localStorage.getItem(STORAGE_KEY)) {
+      window.localStorage.setItem(STORAGE_KEY, legacy);
+    }
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // localStorage may be unavailable; legacy users will simply re-onboard.
   }
 }
 

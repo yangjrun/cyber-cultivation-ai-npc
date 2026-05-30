@@ -1,5 +1,5 @@
 import { fetchJsonWithRetry } from "./apiClient";
-import { defaultPlayer, normalizePlayer, type PlayerState } from "./sessionApi";
+import { defaultPlayer, normalizeInventory, normalizePlayer, type InventoryItem, type PlayerState } from "./sessionApi";
 
 export type InputMode = "dialogue" | "action" | "monologue";
 
@@ -39,6 +39,7 @@ export type ChatResponse = {
   memoryAdded: string;
   actionResult: string;
   player: PlayerState;
+  inventory: InventoryItem[];
   replies: ChatReply[];
   mode: InputMode;
 };
@@ -101,6 +102,7 @@ export function normalizeChatResponse(raw: unknown, fallbackNpcId = "baili"): Ch
     memoryAdded: firstReply.memoryAdded,
     actionResult: firstReply.actionResult,
     player: normalizePlayer(record.player, defaultPlayer.sessionId, defaultPlayer.id),
+    inventory: normalizeInventory(record.inventory),
     replies: normalizedReplies,
     mode
   };
