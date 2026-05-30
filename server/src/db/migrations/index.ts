@@ -6,6 +6,12 @@ import { runPersonalityMigration } from "./004_personality.js";
 import { runBackgroundEventsMigration } from "./005_background_events.js";
 import { runStorylineMigration } from "./006_storyline.js";
 import { runArtifactsMigration } from "./007_artifacts.js";
+import { runRenameChipMigration } from "./008_rename_chip_to_seal.js";
+import { runTradeMigration } from "./009_trade.js";
+import { runShopRegenerationMigration } from "./010_shop_regeneration.js";
+import { runItemQualityMigration } from "./011_item_quality.js";
+import { runGatheringMigration } from "./012_gathering.js";
+import { runPassiveIncomeMigration } from "./013_passive_income.js";
 
 type Migration = {
   version: string;
@@ -19,7 +25,13 @@ const migrations: Migration[] = [
   { version: "004_personality", run: runPersonalityMigration },
   { version: "005_background_events", run: runBackgroundEventsMigration },
   { version: "006_storyline", run: runStorylineMigration },
-  { version: "007_artifacts", run: runArtifactsMigration }
+  { version: "007_artifacts", run: runArtifactsMigration },
+  { version: "008_rename_chip_to_seal", run: runRenameChipMigration },
+  { version: "009_trade", run: runTradeMigration },
+  { version: "010_shop_regeneration", run: runShopRegenerationMigration },
+  { version: "011_item_quality", run: runItemQualityMigration },
+  { version: "012_gathering", run: runGatheringMigration },
+  { version: "013_passive_income", run: runPassiveIncomeMigration }
 ];
 
 export function runMigrations(db: Database): void {

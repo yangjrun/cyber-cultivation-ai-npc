@@ -19,7 +19,7 @@ export function respond(playerInput: string): ValidatedNpcResponse {
     };
   }
 
-  if (includesAny(playerInput, ["丹药", "扫描"])) {
+  if (includesAny(playerInput, ["丹药", "扫描", "望气"])) {
     return {
       dialogue: "能做，但你得先偷一枚监察密钥。",
       tone: "试探",
@@ -35,17 +35,22 @@ export function respond(playerInput: string): ValidatedNpcResponse {
         anger: 0,
         tianDaoAlert: 0
       },
-      memory: "玩家想要躲避监察院扫描的丹药。"
+      memory: "玩家想要躲避监察院望气的丹药。"
     };
   }
 
-  if (includesAny(playerInput, ["买", "交易"])) {
+  if (includesAny(playerInput, ["买", "交易", "来点", "卖", "灵石"])) {
+    const itemId = includesAny(playerInput, ["影髓草", "材料"]) ? "shadow_herb"
+      : includesAny(playerInput, ["劫灰盐"]) ? "ash_salt"
+      : includesAny(playerInput, ["遮云丹", "遮云"]) ? "cloud_veil_pill"
+      : includesAny(playerInput, ["破境丹", "破境"]) ? "breakthrough_pill"
+      : "cheap_qi_pill";
     return {
       dialogue: "买药可以，别问丹炉里烧过谁。",
       tone: "冷淡",
       intent: {
         type: "offer_trade",
-        params: {}
+        params: { itemId }
       },
       state_delta: {
         trust: 0,
@@ -54,6 +59,24 @@ export function respond(playerInput: string): ValidatedNpcResponse {
         tianDaoAlert: 0
       },
       memory: "玩家向白璃询问交易。"
+    };
+  }
+
+  if (includesAny(playerInput, ["给你", "成交", "接着"])) {
+    return {
+      dialogue: "灵石点清了。货拿去，别沾火星。",
+      tone: "冷淡",
+      intent: {
+        type: "complete_trade",
+        params: { itemId: "cheap_qi_pill" }
+      },
+      state_delta: {
+        trust: 1,
+        fear: 0,
+        anger: -1,
+        tianDaoAlert: 0
+      },
+      memory: "交易完成。"
     };
   }
 

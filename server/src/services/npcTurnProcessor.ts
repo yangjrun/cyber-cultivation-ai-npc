@@ -2,11 +2,13 @@ import { applyStateDelta, executeIntent, getNpcState } from "./gameState.js";
 import { buildEquippedPromptHints, buildEquippedTagList } from "./artifactEngine.js";
 import { requestLlm } from "./llmClient.js";
 import { addMemory, getRecentMemories, retrieveRelevantMemories } from "./memoryStore.js";
+import { getMockResponder } from "./mockResponders/index.js";
 import { deriveEvents, evaluateRules, getPersonality, recordEvents } from "./personalityEvolution.js";
 import { buildPromptMessages, mergeMemoriesForPrompt, type PriorNpcReply } from "./promptBuilder.js";
 import { evaluateIntent as evaluateQuestIntent, getRelevantQuests } from "./questEngine.js";
 import { validateLlmResponse } from "./responseValidator.js";
 import { scopedNpcId as makeScopedNpcId } from "./scopedNpcId.js";
+import { validateWorldview } from "./worldviewValidator.js";
 import { recordTurnFlags } from "./worldStateFlags.js";
 import type { ChatReply, SpeakMode } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
@@ -61,7 +63,11 @@ export async function processNpcTurn({
     playerInput,
     npcId
   });
-  const npcResponse = validateLlmResponse(rawResponse);
+  const llmResponse = validateLlmResponse(rawResponse);
+  const worldviewScan = validateWorldview(llmResponse);
+  const npcResponse = worldviewScan.hasHardViolation
+    ? getMockResponder(npcId)(playerInput)
+    : worldviewScan.sanitized;
 
   let dialogue = npcResponse.dialogue;
   let actions = npcResponse.actions ?? [];

@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ActionPanel } from "../components/ActionPanel";
 import { AlchemyModal } from "../components/AlchemyModal";
+import { GatheringModal } from "../components/GatheringModal";
+import { TradeModal } from "../components/TradeModal";
 import { ArtifactPanel } from "../components/ArtifactPanel";
 import { CultivationPanel } from "../components/CultivationPanel";
 import { DialoguePanel } from "../components/DialoguePanel";
@@ -29,7 +31,7 @@ import {
 
 const quickPrompts = [
   "我想买点丹药。",
-  "我需要躲过监察院扫描的丹药。",
+  "我需要躲过监察院望气的丹药。",
   "我怀疑苏鹤是卧底。",
   "让我过去。"
 ] as const;
@@ -49,6 +51,8 @@ export function PlayPage() {
   const error = useGameStore((state) => state.error);
   const lastActionResult = useGameStore((state) => state.lastActionResult);
   const lastIntent = useGameStore((state) => state.lastIntent);
+  const lastIntentParams = useGameStore((state) => state.lastIntentParams);
+  const inventory = useGameStore((state) => state.inventory);
   const systemLogs = useGameStore((state) => state.systemLogs);
   const messages = useGameStore(getActiveMessages);
   const memories = useGameStore(getActiveMemories);
@@ -59,6 +63,7 @@ export function PlayPage() {
   const sendMessage = useGameStore((state) => state.sendMessage);
   const resetDialogue = useGameStore((state) => state.resetDialogue);
   const switchScene = useGameStore((state) => state.switchScene);
+  const openTradeModal = useGameStore((state) => state.openTradeModal);
 
   useEffect(() => {
     if (!sceneId || !sessionId || scenes.length === 0) {
@@ -84,12 +89,16 @@ export function PlayPage() {
   }, [sceneId, sessionId, activeSceneId, navigate]);
 
   useEffect(() => {
-    document.title = `${getNpcName(activeNpcId)} · 赛博修仙 AI NPC`;
+    document.title = `${getNpcName(activeNpcId)} · 九龙下城 · 以仙途`;
   }, [activeNpcId]);
 
   const inputLength = Array.from(input).length;
   const canSend = input.trim().length > 0 && !loading && !sessionLoading;
   const activeNpcName = getNpcName(activeNpcId);
+  const offeredItemId = typeof lastIntentParams.itemId === "string" ? lastIntentParams.itemId : null;
+  const offeredItemName = offeredItemId
+    ? inventory.find((entry) => entry.itemId === offeredItemId)?.item?.name ?? offeredItemId
+    : null;
 
   return (
     <>
@@ -107,7 +116,29 @@ export function PlayPage() {
         <section className="flex flex-col gap-4">
           <DialoguePanel messages={messages} loading={loading || sessionLoading} />
 
-          <div className="cyber-panel cyber-panel--cyan cyber-corner relative overflow-hidden p-4">
+          {lastIntent === "offer_trade" ? (
+            <div
+              data-testid="trade-banner"
+              className="animate-flash rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-amber-100">
+                  {offeredItemName
+                    ? `${activeNpcName}想与你交易「${offeredItemName}」——可通过商店面板实时结算，或继续对话，成交后系统自动扣灵石。`
+                    : `${activeNpcName}想要与你交易 — 可通过商店面板结算，或继续对话，成交后系统自动结算。`}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void openTradeModal(activeNpcId)}
+                  className="shrink-0 rounded-md bg-gradient-to-r from-amber-400 to-rose-400 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-950 shadow-[0_0_12px_-3px_rgba(251,191,36,0.5)] transition hover:from-amber-300 hover:to-rose-300"
+                >
+                  打开商店
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="cultivation-panel cultivation-panel--cyan cultivation-corner relative overflow-hidden p-4">
             <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">
               <span>// quick_link</span>
               <span>tab × {quickPrompts.length}</span>
@@ -140,7 +171,7 @@ export function PlayPage() {
                 placeholder={buildPlaceholder(inputMode, activeNpcName)}
                 rows={2}
                 maxLength={MAX_INPUT * 4}
-                className="cyber-scroll block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500"
+                className="cultivation-scroll block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500"
               />
               <div className="flex items-center justify-between border-t border-cyan-400/15 px-2 pt-2 text-[11px]">
                 <span className="font-mono text-slate-500">
@@ -192,6 +223,8 @@ export function PlayPage() {
         </aside>
       </div>
       <AlchemyModal />
+      <TradeModal />
+      <GatheringModal />
     </>
   );
 }
@@ -201,7 +234,7 @@ function buildPlaceholder(mode: "dialogue" | "action" | "monologue", activeNpcNa
     return "描述一个动作……（如：偷摸过去；Enter 发送）";
   }
   if (mode === "monologue") {
-    return "心声闪过……（NPC 不会听见，但天道云可能记下）";
+    return "心声闪过……（NPC 不会听见，但天道镜可能记下）";
   }
   return `向${activeNpcName}开口……（Enter 发送 / Shift+Enter 换行）`;
 }

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS players (
   session_id TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   realm TEXT NOT NULL,
-  has_illegal_chip INTEGER NOT NULL,
+  has_illegal_seal INTEGER NOT NULL,
   visible_traits TEXT NOT NULL,
   recent_actions TEXT NOT NULL,
   spirit_stones INTEGER NOT NULL,

@@ -53,7 +53,8 @@ function normalizeItemDefinition(raw: unknown): ItemDefinition | null {
     id,
     name,
     type: type as ItemDefinition["type"],
-    description: typeof raw.description === "string" ? raw.description : ""
+    description: typeof raw.description === "string" ? raw.description : "",
+    basePrice: typeof raw.basePrice === "number" && Number.isFinite(raw.basePrice) ? raw.basePrice : 0
   };
 }
 

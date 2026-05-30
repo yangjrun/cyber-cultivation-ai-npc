@@ -46,7 +46,7 @@ export const MILESTONES: readonly MilestoneDefinition[] = [
   {
     id: "lei_survivor",
     title: "雷罚生还者",
-    description: "在天道云锁定的高警戒下硬抗了一次突破。",
+    description: "在天道镜锁定的高警戒下硬抗了一次突破。",
     unlockedBy: (ctx) => (ctx.flags.high_alert_breakthrough ?? 0) > 0
   },
   {

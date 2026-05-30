@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { useGameStore } from "../state/store";
 
 export function ChroniclePage() {
@@ -13,11 +13,11 @@ export function ChroniclePage() {
   }, [sessionId, refreshChronicles]);
 
   return (
-    <section className="cyber-panel cyber-corner mx-auto max-w-3xl space-y-6 p-6">
+    <section className="cultivation-panel cultivation-corner mx-auto max-w-3xl space-y-6 p-6">
       <header className="flex items-start justify-between border-b border-cyan-400/15 pb-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">// chronicle</div>
-          <h1 className="mt-1 text-2xl font-semibold text-cyan-50 cyber-glow-text">史册</h1>
+          <h1 className="mt-1 text-2xl font-semibold text-cyan-50 cultivation-glow-text">史册</h1>
           <p className="mt-1 text-xs text-slate-400">
             史官记下你这一世的回望。可以多次回望——每一次都是不同的笔触。
           </p>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import type { InputMode, SpeakMode } from "../api/chatApi";
 
 export type ChatMessage = {
@@ -32,11 +32,11 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
   }, [messages, loading]);
 
   return (
-    <section className="cyber-panel cyber-corner flex min-h-[520px] flex-1 flex-col overflow-hidden p-5">
+    <section className="cultivation-panel cultivation-corner flex min-h-[520px] flex-1 flex-col overflow-hidden p-5">
       <header className="mb-4 flex items-end justify-between border-b border-cyan-400/15 pb-3">
         <div>
           <div className="text-xs uppercase tracking-[0.4em] text-cyan-200/70">channel</div>
-          <h2 className="mt-1 text-xl font-semibold text-cyan-50 cyber-glow-text">
+          <h2 className="mt-1 text-xl font-semibold text-cyan-50 cultivation-glow-text">
             黑市丹铺通信频道
           </h2>
           <p className="mt-1 text-[11px] uppercase tracking-[0.3em] text-violet-200/70">
@@ -44,18 +44,18 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.35em] text-emerald-200">
-          <span className="cyber-pulse-dot !bg-emerald-300 !shadow-[0_0_12px_rgba(110,231,183,0.8)]" />
+          <span className="cultivation-pulse-dot !bg-emerald-300 !shadow-[0_0_12px_rgba(110,231,183,0.8)]" />
           live
         </div>
       </header>
 
       <div
         ref={scrollRef}
-        className="cyber-scroll flex-1 space-y-3 overflow-y-auto pr-2"
+        className="cultivation-scroll flex-1 space-y-3 overflow-y-auto pr-2"
       >
         {messages.length === 0 ? (
           <div className="rounded-xl border border-dashed border-cyan-500/30 p-6 text-sm text-slate-400">
-            丹铺的义体风铃正在低鸣。
+            丹铺的符箓风铃正在低鸣。
           </div>
         ) : (
           messages.map((message) => <ChatBubble key={message.id} message={message} />)
@@ -63,7 +63,7 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
 
         {loading ? (
           <div className="mr-10 flex items-center gap-3 rounded-xl border border-violet-400/20 bg-violet-500/5 px-4 py-3 text-sm text-violet-100">
-            <span className="cyber-pulse-dot !bg-violet-300 !shadow-[0_0_12px_rgba(139,92,246,0.8)]" />
+            <span className="cultivation-pulse-dot !bg-violet-300 !shadow-[0_0_12px_rgba(139,92,246,0.8)]" />
             灵识传输中...
           </div>
         ) : null}

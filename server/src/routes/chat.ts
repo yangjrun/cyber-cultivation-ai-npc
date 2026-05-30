@@ -4,6 +4,7 @@ import { getNpcProfile, getNpcState, resetNpcState } from "../services/gameState
 import { orchestrateGroupChatTurn } from "../services/groupChatOrchestrator.js";
 import { clearMemories } from "../services/memoryStore.js";
 import { echoMonologue } from "../services/narratorEcho.js";
+import { getInventory } from "../services/inventoryStore.js";
 import { getPlayer, sessionExists } from "../services/playerStore.js";
 import { resetPersonality } from "../services/personalityEvolution.js";
 import { getActiveSceneId, getSceneSnapshot } from "../services/sceneStore.js";
@@ -118,6 +119,7 @@ async function handleDialogueTurn(ctx: TurnContext): Promise<ChatResponseBody> {
     memoryAdded: firstReply.memoryAdded,
     actionResult: firstReply.actionResult,
     player: resolvePlayer(ctx.sessionId),
+    inventory: getInventory(ctx.sessionId),
     replies: groupChat.replies,
     mode: "dialogue",
     groupChat: {
@@ -170,6 +172,7 @@ function buildSilenceBody(ctx: TurnContext, arbiterRationale: string | undefined
     memoryAdded: silenceReply.memoryAdded,
     actionResult: silenceReply.actionResult,
     player: ctx.player,
+    inventory: getInventory(ctx.sessionId),
     replies: [silenceReply],
     mode: "dialogue",
     groupChat: {
@@ -209,6 +212,7 @@ function buildNarratorBody(
     memoryAdded: narratorReply.memoryAdded,
     actionResult: narratorReply.actionResult,
     player: ctx.player,
+    inventory: getInventory(ctx.sessionId),
     replies: [narratorReply],
     mode,
     groupChat: {

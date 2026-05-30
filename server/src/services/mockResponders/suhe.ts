@@ -43,7 +43,7 @@ export function respond(playerInput: string): ValidatedNpcResponse {
       tone: "平静",
       intent: {
         type: "offer_trade",
-        params: {}
+        params: { itemId: "cloud_veil_pill" }
       },
       state_delta: {
         trust: 1,

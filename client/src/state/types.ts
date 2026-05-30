@@ -2,9 +2,11 @@ import type { MaterialSelection } from "../api/alchemyApi";
 import type { OwnedArtifact } from "../api/artifactApi";
 import type { InputMode } from "../api/chatApi";
 import type { MilestoneSnapshot, RunChronicle } from "../api/chronicleApi";
+import type { GatheringPointInfo } from "../api/gatheringApi";
 import type { QuestProgress } from "../api/questApi";
 import type { SceneDefinition } from "../api/sceneApi";
 import type { CreateSessionInput, InventoryItem, NpcStateSnapshot, PlayerState } from "../api/sessionApi";
+import type { ShopSnapshot } from "../api/tradeApi";
 import type { ChatMessage } from "../components/DialoguePanel";
 import type { SystemLog } from "../components/SystemLogPanel";
 
@@ -32,9 +34,12 @@ export type GameState = {
   error: string;
   lastActionResult: string;
   lastIntent: string;
+  lastIntentParams: Record<string, unknown>;
   lastCultivationResult: string;
   lastBreakthroughResult: string;
   lastAlchemyResult: string;
+  cultivationResultTick: number;
+  alchemyResultTick: number;
   alchemyModalOpen: boolean;
   systemLogs: SystemLog[];
   chronicles: RunChronicle[];
@@ -44,6 +49,20 @@ export type GameState = {
   milestonesLoading: boolean;
   artifacts: OwnedArtifact[];
   artifactsLoading: boolean;
+  tradeModalOpen: boolean;
+  tradeNpcId: string;
+  shop: ShopSnapshot | null;
+  tradeLoading: boolean;
+  lastTradeResult: string;
+  tradeResultTick: number;
+  gatheringModalOpen: boolean;
+  gatheringPoints: GatheringPointInfo[];
+  gatheringLoading: boolean;
+  lastGatheringResult: string;
+  gatheringResultTick: number;
+  passiveIncomeLoading: boolean;
+  lastPassiveIncomeResult: string;
+  passiveIncomeResultTick: number;
 };
 
 export type GameActions = {
@@ -69,6 +88,16 @@ export type GameActions = {
   refreshArtifacts: () => Promise<void>;
   equipArtifact: (artifactId: string) => Promise<void>;
   unequipArtifact: (artifactId: string) => Promise<void>;
+  openTradeModal: (npcId: string) => Promise<void>;
+  closeTradeModal: () => void;
+  refreshShop: () => Promise<void>;
+  buyTradeItem: (itemId: string, quantity: number) => Promise<void>;
+  sellTradeItem: (itemId: string, quantity: number) => Promise<void>;
+  openGatheringModal: () => Promise<void>;
+  closeGatheringModal: () => void;
+  refreshGatheringPoints: () => Promise<void>;
+  gatherFromPoint: (pointId: string) => Promise<void>;
+  claimPassiveIncome: () => Promise<void>;
 };
 
 export type GameStore = GameState & GameActions;

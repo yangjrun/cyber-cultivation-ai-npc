@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+﻿import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -10,8 +10,8 @@ const mockPlayer = {
   sessionId: "session-1",
   name: "陆玄",
   realm: "练气期",
-  hasIllegalChip: true,
-  visibleTraits: ["右臂义体", "雷罚残痕", "非法灵根波形"],
+  hasIllegalSeal: true,
+  visibleTraits: ["右臂经脉", "雷罚残痕", "非法灵根烙印"],
   recentActions: ["救过白璃的药童"],
   spiritStones: 0,
   qiCurrent: 0,
@@ -74,7 +74,7 @@ const mockChatResponse = {
     anger: 0,
     tianDaoAlert: 45
   },
-  memoryAdded: "玩家想要躲避监察院扫描的丹药。",
+  memoryAdded: "玩家想要躲避监察院望气的丹药。",
   actionResult: "接受任务：偷一枚监察密钥 / baili 情绪变动",
   player: mockPlayer
 };
@@ -92,7 +92,7 @@ describe("App", () => {
     window.localStorage.clear();
     // Pre-seed a stored sessionId so App auto-restores the session without
     // routing through CharacterCreatorPage.
-    window.localStorage.setItem("cyber-cultivation.sessionId", "session-1");
+    window.localStorage.setItem("lower-city.sessionId", "session-1");
     resetGameStoreForTests();
     vi.stubGlobal("fetch", createFetchMock());
   });
@@ -109,7 +109,7 @@ describe("App", () => {
     renderApp();
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
+      expect(window.localStorage.getItem("lower-city.sessionId")).toBe("session-1");
     });
 
     const input = await screen.findByRole("textbox");
@@ -125,10 +125,10 @@ describe("App", () => {
     renderApp();
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
+      expect(window.localStorage.getItem("lower-city.sessionId")).toBe("session-1");
     });
 
-    await user.click(await screen.findByRole("button", { name: "我需要躲过监察院扫描的丹药。" }));
+    await user.click(await screen.findByRole("button", { name: "我需要躲过监察院望气的丹药。" }));
     await user.click(screen.getByRole("button", { name: "发送" }));
 
     await waitFor(() => {
@@ -137,12 +137,12 @@ describe("App", () => {
 
     const chatCall = fetchMock.mock.calls.find(([input]) => String(input) === "/api/chat");
     expect(chatCall?.[1]?.body).toBe(JSON.stringify({
-      playerInput: "我需要躲过监察院扫描的丹药。",
+      playerInput: "我需要躲过监察院望气的丹药。",
       npcId: "baili",
       sessionId: "session-1",
       inputMode: "dialogue"
     }));
-    expect(screen.getByText("玩家想要躲避监察院扫描的丹药。")).toBeInTheDocument();
+    expect(screen.getByText("玩家想要躲避监察院望气的丹药。")).toBeInTheDocument();
     expect(screen.getAllByText(/接受任务：偷一枚监察密钥/).length).toBeGreaterThan(0);
   });
 
@@ -152,7 +152,7 @@ describe("App", () => {
     renderApp();
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("cyber-cultivation.sessionId")).toBe("session-1");
+      expect(window.localStorage.getItem("lower-city.sessionId")).toBe("session-1");
     });
 
     const input = await screen.findByRole("textbox");

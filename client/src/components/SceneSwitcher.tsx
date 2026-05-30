@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+﻿import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../state/store";
 import type { SceneDefinition } from "../api/sceneApi";
 
@@ -15,7 +15,7 @@ export function SceneSwitcher() {
   return (
     <nav
       aria-label="场景切换"
-      className="cyber-panel cyber-corner flex items-center gap-2 overflow-x-auto p-3"
+      className="cultivation-panel cultivation-corner flex items-center gap-2 overflow-x-auto p-3"
     >
       <span className="text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">// scene</span>
       <div className="flex flex-wrap gap-2">

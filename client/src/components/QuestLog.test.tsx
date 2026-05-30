@@ -8,7 +8,8 @@ const quest = (
   questId: string,
   status: QuestProgress["status"],
   title: string,
-  description = ""
+  description = "",
+  extra: Partial<QuestProgress> = {}
 ): QuestProgress => ({
   sessionId: "test-session",
   questId,
@@ -23,7 +24,10 @@ const quest = (
     description,
     giverNpcId: "baili",
     involvedNpcIds: ["baili"]
-  }
+  },
+  repeatable: false,
+  nextAvailableAt: null,
+  ...extra
 });
 
 describe("QuestLog", () => {
@@ -83,5 +87,44 @@ describe("QuestLog", () => {
 
     render(<QuestLog />);
     expect(screen.getByText("从监察院巡视员身上偷一枚密钥。")).toBeTruthy();
+  });
+
+  it("marks repeatable commission quests with a 委托 badge", () => {
+    useGameStore.setState({
+      quests: [quest("q1", "accepted", "送药跑腿", "送货。", { repeatable: true })]
+    });
+
+    render(<QuestLog />);
+    expect(screen.getByText("委托")).toBeTruthy();
+  });
+
+  it("shows cooldown countdown for completed repeatable quests", () => {
+    const futureTime = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString();
+    useGameStore.setState({
+      quests: [
+        quest("q1", "completed", "送药跑腿", "送货。", {
+          repeatable: true,
+          nextAvailableAt: futureTime
+        })
+      ]
+    });
+
+    render(<QuestLog />);
+    expect(screen.getByText(/冷却中/)).toBeTruthy();
+  });
+
+  it("shows ready-to-accept when cooldown has elapsed", () => {
+    const pastTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    useGameStore.setState({
+      quests: [
+        quest("q1", "completed", "送药跑腿", "送货。", {
+          repeatable: true,
+          nextAvailableAt: pastTime
+        })
+      ]
+    });
+
+    render(<QuestLog />);
+    expect(screen.getByText("可再次接取")).toBeTruthy();
   });
 });

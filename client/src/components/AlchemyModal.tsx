@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useGameStore } from "../state/store";
 
 const recipes = [
@@ -21,6 +21,8 @@ export function AlchemyModal() {
   const loading = useGameStore((state) => state.alchemyLoading);
   const close = useGameStore((state) => state.closeAlchemyModal);
   const refine = useGameStore((state) => state.refineAlchemy);
+  const lastAlchemyResult = useGameStore((state) => state.lastAlchemyResult);
+  const alchemyResultTick = useGameStore((state) => state.alchemyResultTick);
   const [recipeId, setRecipeId] = useState<string>(recipes[0].id);
   const [fireLevel, setFireLevel] = useState(62);
   const recipe = recipes.find((item) => item.id === recipeId) ?? recipes[0];
@@ -31,7 +33,7 @@ export function AlchemyModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="炼丹炉">
-      <div className="cyber-panel cyber-panel--rose cyber-corner w-full max-w-lg p-5">
+      <div className="cultivation-panel cultivation-panel--rose cultivation-corner w-full max-w-lg p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase tracking-[0.35em] text-rose-300/70">// alchemy_furnace</p>
@@ -79,8 +81,18 @@ export function AlchemyModal() {
             onClick={() => void refine(recipeId, [], fireLevel)}
             className="w-full rounded-md bg-gradient-to-r from-rose-400 to-amber-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-950 transition disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400"
           >
-            {loading ? "开炉中..." : "开炉炼制"}
+            {loading ? "开炉中..." : lastAlchemyResult ? "再炼一炉" : "开炉炼制"}
           </button>
+
+          {lastAlchemyResult ? (
+            <div
+              key={alchemyResultTick}
+              data-testid="alchemy-result"
+              className="animate-flash rounded-xl border border-rose-300/25 bg-slate-950/60 px-3 py-2 text-xs text-rose-100"
+            >
+              {lastAlchemyResult}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

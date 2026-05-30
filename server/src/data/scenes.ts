@@ -14,7 +14,7 @@ export const sceneDefinitions: Record<string, SceneDefinition> = {
   inspector_outpost: {
     sceneId: "inspector_outpost",
     name: "监察院外围",
-    description: "太清监察院在九龙下城设的临时哨所，全息封条贴满墙面。掮客们在哨所外的台阶上低声交易，巡逻队两小时一过。",
+    description: "太清监察院在九龙下城设的临时哨所，符箓封咒贴满墙面。掮客们在哨所外的台阶上低声交易，巡逻队两个时辰一过。",
     backgroundAsset: "/scenes/inspector_outpost.png",
     npcIds: ["suhe"],
     unlockedByDefault: true
@@ -22,7 +22,7 @@ export const sceneDefinitions: Record<string, SceneDefinition> = {
   thunder_tavern: {
     sceneId: "thunder_tavern",
     name: "雷罚酒馆",
-    description: "雷罚帮在地下三层开的酒馆，灵酒掺着杂讯电流。常客是过路费收员、信息贩子、还有等着被雷罚帮收编的散修。",
+    description: "雷罚帮在地下三层开的酒馆，灵酒掺着杂讯灵纹。常客是过路费收员、情报贩子、还有等着被雷罚帮收编的散修。",
     backgroundAsset: "/scenes/thunder_tavern.png",
     npcIds: ["chimu", "qinggu"],
     unlockedByDefault: true

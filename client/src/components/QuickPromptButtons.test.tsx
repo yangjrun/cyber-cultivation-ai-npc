@@ -1,9 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QuickPromptButtons } from "./QuickPromptButtons";
 
-const samplePrompts = ["我想买点丹药。", "我需要躲过监察院扫描的丹药。"] as const;
+const samplePrompts = ["我想买点丹药。", "我需要躲过监察院望气的丹药。"] as const;
 
 describe("QuickPromptButtons", () => {
   afterEach(() => cleanup());

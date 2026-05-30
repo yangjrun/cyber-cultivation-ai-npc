@@ -26,6 +26,10 @@ export type QuestDefinition = {
   effectsOnAccept: QuestEffect[];
   effectsOnComplete: QuestEffect[];
   effectsOnFail: QuestEffect[];
+  /** 可重复委托：完成后经冷却可再次接取 */
+  repeatable?: boolean;
+  /** 重复接取的冷却小时数（仅 repeatable 时生效，默认 48） */
+  cooldownHours?: number;
 };
 
 export type QuestProgress = {

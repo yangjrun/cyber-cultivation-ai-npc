@@ -7,7 +7,7 @@ const basePlayer: PlayerState = {
   sessionId: "session",
   name: "陆玄",
   realm: "练气期",
-  hasIllegalChip: true,
+  hasIllegalSeal: true,
   visibleTraits: [],
   recentActions: [],
   spiritStones: 0,
@@ -18,7 +18,8 @@ const basePlayer: PlayerState = {
   activeTechniqueId: "basic_breathing",
   breakthroughBonusUntil: null,
   alertShieldUntil: null,
-  alertShieldStrength: 0
+  alertShieldStrength: 0,
+  passiveIncomeClaimedAt: null
 };
 
 describe("cultivationEngine", () => {

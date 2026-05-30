@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { CreateSessionInput, ElementRoots, PlayerTraitId, RootElement } from "../api/sessionApi";
 import { useGameStore } from "../state/store";
@@ -13,9 +13,9 @@ type TraitOption = {
 const TRAIT_OPTIONS: TraitOption[] = [
   {
     id: "yiti_arm",
-    name: "右臂义体",
-    description: "义体接驳点泄漏微弱金属共鸣，能撕开符纸但被天道云持续标记。",
-    preview: ["右臂义体", "金属共鸣残响"]
+    name: "右臂经脉",
+    description: "右臂经脉曾被人接驳金石灵纹，能撕开符纸但被天道镜持续标记。",
+    preview: ["右臂经脉", "金石灵纹残响"]
   },
   {
     id: "leifa_scar",
@@ -26,8 +26,8 @@ const TRAIT_OPTIONS: TraitOption[] = [
   {
     id: "feifagen",
     name: "非法灵根",
-    description: "灵根波形被天道云列为禁用频谱；普通灵气吸收效率低，但能用废管邪气。",
-    preview: ["非法灵根波形"]
+    description: "灵根烙印被天道镜列为禁纹；普通灵气吸收效率低，但能用废管邪气。",
+    preview: ["非法灵根烙印"]
   }
 ];
 
@@ -91,16 +91,16 @@ export function CharacterCreatorPage() {
   return (
     <section
       aria-labelledby="creator-heading"
-      className="cyber-panel cyber-corner mx-auto max-w-3xl space-y-6 p-6"
+      className="cultivation-panel cultivation-corner mx-auto max-w-3xl space-y-6 p-6"
     >
       <header className="flex items-start justify-between border-b border-cyan-400/15 pb-3">
         <div>
           <div className="text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">// avatar_init</div>
-          <h1 id="creator-heading" className="mt-1 text-2xl font-semibold text-cyan-50 cyber-glow-text">
+          <h1 id="creator-heading" className="mt-1 text-2xl font-semibold text-cyan-50 cultivation-glow-text">
             注入身份
           </h1>
           <p className="mt-1 text-xs text-slate-400">
-            天道云尚未识别你的波形——填好这张档案，然后进入九龙下城。
+            天道镜尚未识别你的灵压——填好这张档案，然后进入九龙下城。
           </p>
         </div>
         <button

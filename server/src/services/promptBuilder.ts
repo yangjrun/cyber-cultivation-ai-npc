@@ -1,8 +1,10 @@
 import { rootLabels } from "../data/cultivationBalance.js";
+import { items } from "../data/items.js";
 import { getQuestsByGiver } from "../data/quests.js";
 import { getTechnique, techniques } from "../data/techniques.js";
 import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
 import { getExemplars, getRoleCard } from "./promptParts/index.js";
+import { getWorldviewPreamble } from "./promptParts/worldview.js";
 import type { LlmMessage } from "../types/llm.js";
 import type { NpcState } from "../types/npc.js";
 import type { PlayerState, RootElement } from "../types/player.js";
@@ -71,7 +73,9 @@ function buildStableSystemPrompt(npcId: string): string {
     ? `teach_technique 的 technique_id 只能是 ${techniqueIds.join("、")}，否则把 intent.type 改为 none。`
     : `teach_technique 暂未开放，任何此 intent 都应改为 none。`;
 
-  return `你在扮演赛博修仙游戏里的 NPC：${name}。请像写一段游戏对白那样写一句话——${name}是一个真实的人，不是说明书。
+  return `你在扮演九龙下城修仙世界里的 NPC：${name}。请像写一段游戏对白那样写一句话——${name}是一个真实的人，不是说明书。
+
+${getWorldviewPreamble()}
 
 # 角色卡
 
@@ -80,8 +84,8 @@ ${roleCard}
 # 可执行的内部意图（intent）
 
 只允许：${allowedIntents.join("、")}。意图是给系统看的，必须与台词的实际效果一致：
-- offer_trade：${name}愿意做这单生意（哪怕嘴上嫌弃、要加价、谈条件——只要还打算卖/换/给信息，就用这个）。
-- complete_trade：本轮台词里达成了具体的交易结算（钱货两清、明确给出价格）。
+- offer_trade：${name}愿意做这单生意（哪怕嘴上嫌弃、要加价、谈条件——只要还打算卖/换/给信息，就用这个）。params 里必须填 itemId：${Object.values(items).map(i => `"${i.id}"（${i.name}）`).join("、")}。
+- complete_trade：本轮台词里达成了具体的交易结算（钱货两清、交易当场完成）。params 必须包含上一个 offer_trade 里的 itemId。系统会自动按市价扣灵石结账，你的台词里可以报个数字但不影响实际扣款。
 - teach_technique：${name}传授一门吐纳/功法（technique_id 必须在白名单内）。
 - give_quest：${name}决定派活给玩家，让玩家先去帮${name}做一件事再谈${questIds.length > 0 ? `（quest_id 只能是 ${questIds.join("、")}）` : "（注：本 NPC 不派任务）"}。
 - refuse_service：本单不做了——驱客、撵人、关门、明确说不卖。只在真的关门时使用。
@@ -110,7 +114,7 @@ ${exemplars}
 1. dialogue 允许 1-3 句，每句独立成意，不要堆叠从句。不愿意说就留空字符串。
 2. dialogue 里允许内嵌 *动作描写*（星号包裹），也可以把动作单独放进 actions 数组——任选其一，不要重复。
 3. 节奏要有差异：有时候一字一句（"滚。"），有时候 2-3 句，有时候不说话只做动作。不要每条都同一长度。
-4. dialogue 内绝对不要堆砌"灵根""波形""天道云""非法灵根波形""灵根波形"这类术语；说人话，不复读设定卡。同一条回复里同一个术语最多出现一次，能不出现就不出现。
+4. dialogue 内绝对不要堆砌"灵根""灵压波纹""天道镜""非法灵根烙印"这类术语；说人话，不复读设定卡。同一条回复里同一个术语最多出现一次，能不出现就不出现。
 5. 不允许编造世界里不存在的法宝、任务、机构、技能、地点。
 6. ${questRule}
 7. ${techniqueRule}
@@ -141,7 +145,7 @@ export function buildUserTurn(input: UserTurnInput): string {
     `trust=${state.trust}（信任）`,
     `fear=${state.fear}（恐惧）`,
     `anger=${state.anger}（怒气）`,
-    `tianDaoAlert=${state.tianDaoAlert}（天道云警戒）`,
+    `tianDaoAlert=${state.tianDaoAlert}（天道镜警戒）`,
     sceneSection,
     "",
     `${name}正在打交道的对象：`,
@@ -329,7 +333,7 @@ function buildQuestSection(quests: QuestProgress[], name: string): string {
 
 function buildPlayerNarrative(player: PlayerState, npcName: string, equippedArtifactTags: string[]): string {
   const tags = [
-    player.hasIllegalChip ? "持有非法灵根芯片" : "灵根登记干净",
+    player.hasIllegalSeal ? "持有非法灵根烙印" : "灵根登记干净",
     ...player.visibleTraits,
     ...equippedArtifactTags,
     player.recentActions.length > 0

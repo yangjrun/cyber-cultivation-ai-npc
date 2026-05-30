@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
+import { LEGACY_STORAGE_KEY, STORAGE_KEY } from "../state/constants";
 import { useGameStore } from "../state/store";
 
 export function SettingsPage() {
@@ -8,9 +9,9 @@ export function SettingsPage() {
   const activeNpcId = useGameStore((state) => state.activeNpcId);
 
   return (
-    <section className="cyber-panel cyber-corner mx-auto max-w-2xl space-y-4 p-6">
+    <section className="cultivation-panel cultivation-corner mx-auto max-w-2xl space-y-4 p-6">
       <header>
-        <h1 className="text-lg font-semibold text-cyan-50 cyber-glow-text">设置与调试</h1>
+        <h1 className="text-lg font-semibold text-cyan-50 cultivation-glow-text">设置与调试</h1>
         <p className="mt-1 text-xs uppercase tracking-[0.3em] text-cyan-200/60">// settings</p>
       </header>
 
@@ -26,7 +27,8 @@ export function SettingsPage() {
           type="button"
           onClick={() => {
             try {
-              window.localStorage.removeItem("cyber-cultivation.sessionId");
+              window.localStorage.removeItem(STORAGE_KEY);
+              window.localStorage.removeItem(LEGACY_STORAGE_KEY);
             } catch {
               // localStorage may be unavailable; ignore.
             }

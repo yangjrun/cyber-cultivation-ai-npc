@@ -93,6 +93,14 @@ describe("scene + quest routes", () => {
     const res = await request(app).get("/api/quests/definitions").expect(200);
 
     const ids = res.body.definitions.map((d: { questId: string }) => d.questId).sort();
-    expect(ids).toEqual(["pay_thunder_toll", "steal_inspector_key", "verify_suhe_identity"]);
+    expect(ids).toEqual([
+      "baili_delivery_run",
+      "chimu_toll_collection",
+      "pay_thunder_toll",
+      "qinggu_verify_rumor",
+      "steal_inspector_key",
+      "suhe_intel_errand",
+      "verify_suhe_identity"
+    ]);
   });
 });

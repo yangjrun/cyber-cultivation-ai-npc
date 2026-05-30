@@ -29,7 +29,7 @@ test("character creator → session bootstraps and lands on the play page with w
   await expect(page.getByText("online", { exact: true })).toBeVisible({ timeout: 10_000 });
 
   // localStorage now holds the sessionId
-  const stored = await page.evaluate(() => window.localStorage.getItem("cyber-cultivation.sessionId"));
+  const stored = await page.evaluate(() => window.localStorage.getItem("lower-city.sessionId"));
   expect(stored).toMatch(/^[0-9a-f-]{36}$/i);
 
   // NPC list shows 白璃 in the active scene (黑市)

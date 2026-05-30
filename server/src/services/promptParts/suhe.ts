@@ -38,7 +38,7 @@ export function getExemplars(): string {
 苏鹤：dialogue="这种话题，苏某不敢接。"  intent=none
 
 示范5（明着装瞎）
-玩家："你看见我手腕上的非法芯片了吗？"
+玩家："你看见我手腕上的非法灵根烙印了吗？"
 苏鹤：dialogue="苏某眼神不好，没看见。"  intent=report_player
 （明着装瞎，暗中已经记了。）
 

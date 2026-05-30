@@ -27,6 +27,10 @@ describe("migrations", () => {
       "unlocked_milestones",
       "run_chronicles",
       "equipped_artifacts",
+      "npc_shops",
+      "npc_shop_items",
+      "shop_balance_regeneration",
+      "gathering_cooldowns",
       "schema_migrations"
     ]));
 
@@ -49,7 +53,13 @@ describe("migrations", () => {
       "004_personality",
       "005_background_events",
       "006_storyline",
-      "007_artifacts"
+      "007_artifacts",
+      "008_rename_chip_to_seal",
+      "009_trade",
+      "010_shop_regeneration",
+      "011_item_quality",
+      "012_gathering",
+      "013_passive_income"
     ]);
 
     db.close();
@@ -79,6 +89,10 @@ describe("migrations", () => {
       .run(sessionId, "...", "[]", now);
     db.prepare("INSERT INTO equipped_artifacts (session_id, item_id, equipped_at) VALUES (?, ?, ?)")
       .run(sessionId, "fentian_ling", now);
+    db.prepare("INSERT INTO npc_shops (session_id, npc_id, spirit_stones, updated_at) VALUES (?, ?, ?, ?)")
+      .run(sessionId, "baili", 800, now);
+    db.prepare("INSERT INTO npc_shop_items (session_id, npc_id, item_id, quantity, updated_at) VALUES (?, ?, ?, ?, ?)")
+      .run(sessionId, "baili", "cheap_qi_pill", 5, now);
 
     db.prepare("DELETE FROM sessions WHERE id = ?").run(sessionId);
 
@@ -90,6 +104,8 @@ describe("migrations", () => {
     const milestones = db.prepare("SELECT * FROM unlocked_milestones WHERE session_id = ?").all(sessionId);
     const chronicles = db.prepare("SELECT * FROM run_chronicles WHERE session_id = ?").all(sessionId);
     const equippedArtifacts = db.prepare("SELECT * FROM equipped_artifacts WHERE session_id = ?").all(sessionId);
+    const npcShops = db.prepare("SELECT * FROM npc_shops WHERE session_id = ?").all(sessionId);
+    const npcShopItems = db.prepare("SELECT * FROM npc_shop_items WHERE session_id = ?").all(sessionId);
 
     expect(quests).toEqual([]);
     expect(scenes).toEqual([]);
@@ -99,6 +115,8 @@ describe("migrations", () => {
     expect(milestones).toEqual([]);
     expect(chronicles).toEqual([]);
     expect(equippedArtifacts).toEqual([]);
+    expect(npcShops).toEqual([]);
+    expect(npcShopItems).toEqual([]);
 
     db.close();
   });

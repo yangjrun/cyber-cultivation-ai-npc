@@ -19,6 +19,8 @@ export type QuestProgress = {
   completedAt: string | null;
   updatedAt: string;
   definition: QuestDefinition | null;
+  repeatable: boolean;
+  nextAvailableAt: string | null;
 };
 
 export async function listQuests(sessionId: string): Promise<QuestProgress[]> {
@@ -64,7 +66,9 @@ export function normalizeQuestList(raw: unknown): QuestProgress[] {
       acceptedAt: typeof entry.acceptedAt === "string" ? entry.acceptedAt : null,
       completedAt: typeof entry.completedAt === "string" ? entry.completedAt : null,
       updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
-      definition: normalizeDefinition(entry.definition)
+      definition: normalizeDefinition(entry.definition),
+      repeatable: entry.repeatable === true,
+      nextAvailableAt: typeof entry.nextAvailableAt === "string" ? entry.nextAvailableAt : null
     }];
   });
 }

@@ -25,7 +25,7 @@ describe("POST /api/session with custom body", () => {
     const res = await request(app).post("/api/session").send({}).expect(201);
 
     expect(res.body.player.name).toBe("陆玄");
-    expect(res.body.player.visibleTraits).toEqual(["右臂义体", "雷罚残痕", "非法灵根波形"]);
+    expect(res.body.player.visibleTraits).toEqual(["右臂经脉", "雷罚残痕", "非法灵根烙印"]);
   });
 
   it("overrides name when provided", async () => {
@@ -77,7 +77,7 @@ describe("POST /api/session with custom body", () => {
   it("replaces visibleTraits when traitId is provided (yiti_arm)", async () => {
     const app = createApp();
     const res = await request(app).post("/api/session").send({ traitId: "yiti_arm" }).expect(201);
-    expect(res.body.player.visibleTraits).toEqual(["右臂义体", "金属共鸣残响"]);
+    expect(res.body.player.visibleTraits).toEqual(["右臂经脉", "金石灵纹残响"]);
   });
 
   it("replaces visibleTraits when traitId is provided (leifa_scar)", async () => {

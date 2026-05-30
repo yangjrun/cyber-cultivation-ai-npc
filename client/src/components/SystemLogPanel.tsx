@@ -1,4 +1,4 @@
-export type SystemLog = {
+﻿export type SystemLog = {
   id: string;
   time: string;
   text: string;
@@ -10,7 +10,7 @@ type SystemLogPanelProps = {
 
 export function SystemLogPanel({ logs }: SystemLogPanelProps) {
   return (
-    <section className="cyber-panel cyber-panel--amber cyber-corner relative overflow-hidden p-4">
+    <section className="cultivation-panel cultivation-panel--amber cultivation-corner relative overflow-hidden p-4">
       <header className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-200">
           系统日志

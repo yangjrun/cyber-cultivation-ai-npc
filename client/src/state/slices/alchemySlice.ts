@@ -24,12 +24,18 @@ export const createAlchemySlice: StateCreator<GameStore, [], [], AlchemyActions>
 
     try {
       const response = await requestRefineAlchemy(sessionId, recipeId, materials, fireLevel);
-      set({
+      const qualityLabel = formatQualityLabel(response.quality);
+      const productName = response.resultItem?.name;
+      const detail = [qualityLabel, productName ? `产物 ${productName}` : null]
+        .filter(Boolean)
+        .join(" / ");
+      const message = detail ? `${response.message}（${detail}）` : response.message;
+      set((state) => ({
         inventory: response.inventory,
-        lastAlchemyResult: response.message,
-        alchemyModalOpen: false
-      });
-      get().appendLog(`炼丹结果：${response.message}`);
+        lastAlchemyResult: message,
+        alchemyResultTick: state.alchemyResultTick + 1
+      }));
+      get().appendLog(`炼丹结果：${message}`);
     } catch {
       set({ error: "炼丹链路中断：材料或炉火出了问题。" });
       get().appendLog("炼丹失败：后端拒绝结算。");
@@ -57,7 +63,8 @@ export const createAlchemySlice: StateCreator<GameStore, [], [], AlchemyActions>
           ? { ...state.npcStates, [activeNpcId]: response.npcState }
           : state.npcStates,
         inventory: response.inventory,
-        lastAlchemyResult: response.message
+        lastAlchemyResult: response.message,
+        alchemyResultTick: state.alchemyResultTick + 1
       }));
       get().appendLog(`服用物品：${response.message}`);
     } catch {
@@ -76,3 +83,18 @@ export const createAlchemySlice: StateCreator<GameStore, [], [], AlchemyActions>
     set({ alchemyModalOpen: false });
   }
 });
+
+function formatQualityLabel(quality: string): string {
+  switch (quality) {
+    case "perfect":
+      return "上品";
+    case "fine":
+      return "良品";
+    case "common":
+      return "普通";
+    case "failed":
+      return "失败";
+    default:
+      return quality;
+  }
+}

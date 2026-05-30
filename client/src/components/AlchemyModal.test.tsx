@@ -57,4 +57,33 @@ describe("AlchemyModal", () => {
     const button = screen.getByRole("button", { name: "开炉中..." }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
+
+  it("shows lastAlchemyResult inside the dialog and switches button to 再炼一炉", () => {
+    useGameStore.setState({
+      alchemyModalOpen: true,
+      lastAlchemyResult: "丹成，可以入喉。（普通 / 产物 遮云丹）",
+      alchemyResultTick: 1
+    });
+
+    render(<AlchemyModal />);
+    expect(screen.getByTestId("alchemy-result").textContent).toContain("产物 遮云丹");
+    expect(screen.getByRole("button", { name: "再炼一炉" })).toBeTruthy();
+  });
+
+  it("remounts the result node when alchemyResultTick advances", () => {
+    useGameStore.setState({
+      alchemyModalOpen: true,
+      lastAlchemyResult: "丹成，可以入喉。",
+      alchemyResultTick: 1
+    });
+
+    const { rerender } = render(<AlchemyModal />);
+    const first = screen.getByTestId("alchemy-result");
+
+    useGameStore.setState({ lastAlchemyResult: "丹成，可以入喉。", alchemyResultTick: 2 });
+    rerender(<AlchemyModal />);
+    const second = screen.getByTestId("alchemy-result");
+
+    expect(second).not.toBe(first);
+  });
 });

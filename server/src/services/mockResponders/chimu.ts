@@ -21,9 +21,29 @@ export function respond(playerInput: string): ValidatedNpcResponse {
     };
   }
 
-  if (includesAny(playerInput, ["没钱", "求情", "穷", "通融", "免费"])) {
+  if (includesAny(playerInput, ["金丹", "筑基", "元婴", "化神", "结丹", "渡劫", "境界", "强者"])) {
     return {
-      dialogue: "没钱？那就扣家伙。",
+      dialogue: "规矩一样。三十灵石。",
+      tone: "冷淡",
+      intent: {
+        type: "give_quest",
+        params: {
+          quest_id: "pay_thunder_toll"
+        }
+      },
+      state_delta: {
+        trust: 0,
+        fear: 0,
+        anger: 1,
+        tianDaoAlert: 0
+      },
+      memory: "玩家亮境界想免过路费，赤目不认。"
+    };
+  }
+
+  if (includesAny(playerInput, ["没钱", "没灵石", "求情", "穷", "通融", "免费"])) {
+    return {
+      dialogue: "没灵石？那就扣家伙。",
       tone: "冷笑",
       intent: {
         type: "refuse_service",
@@ -53,7 +73,7 @@ export function respond(playerInput: string): ValidatedNpcResponse {
         anger: 8,
         tianDaoAlert: 6
       },
-      memory: "玩家想动手，赤目的义体眼看穿了非法灵根。"
+      memory: "玩家想动手，赤目的望气瞳看穿了非法灵根。"
     };
   }
 
@@ -95,3 +115,4 @@ export function respond(playerInput: string): ValidatedNpcResponse {
 function includesAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => text.includes(keyword));
 }
+

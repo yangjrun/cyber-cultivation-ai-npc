@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+﻿import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MilestonePanel } from "./MilestonePanel";
 import { resetGameStoreForTests, useGameStore } from "../state/store";
@@ -19,7 +19,7 @@ describe("MilestonePanel", () => {
   it("shows scanning indicator while loading with no milestones", () => {
     useGameStore.setState({ sessionId: "s1", milestones: [], milestonesLoading: true });
     render(<MilestonePanel />);
-    expect(screen.getByText("扫描中...")).toBeTruthy();
+    expect(screen.getByText("望气中...")).toBeTruthy();
   });
 
   it("shows empty-state copy when no milestones are unlocked", () => {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+﻿import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryPanel } from "./MemoryPanel";
 
@@ -14,14 +14,14 @@ describe("MemoryPanel", () => {
   it("renders each memory entry preserving order", () => {
     render(
       <MemoryPanel
-        memories={["玩家威胁过白璃。", "玩家答应去偷监察密钥。", "玩家被天道云锁定过波形。"]}
+        memories={["玩家威胁过白璃。", "玩家答应去偷监察密钥。", "玩家被天道镜锁定过灵压。"]}
         npcName="白璃"
       />
     );
 
     expect(screen.getByText("玩家威胁过白璃。")).toBeTruthy();
     expect(screen.getByText("玩家答应去偷监察密钥。")).toBeTruthy();
-    expect(screen.getByText("玩家被天道云锁定过波形。")).toBeTruthy();
+    expect(screen.getByText("玩家被天道镜锁定过灵压。")).toBeTruthy();
   });
 
   it("uses the npcName in the section title", () => {

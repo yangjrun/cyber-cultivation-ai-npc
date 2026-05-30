@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+﻿import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -41,7 +41,7 @@ describe("CharacterCreatorPage", () => {
     expect(screen.getByLabelText("水灵根值")).toBeTruthy();
     expect(screen.getByLabelText("火灵根值")).toBeTruthy();
     expect(screen.getByLabelText("土灵根值")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /右臂义体/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /右臂经脉/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /雷罚残痕/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /非法灵根/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /进入九龙下城/ })).toBeTruthy();

@@ -13,6 +13,7 @@ const pill = (itemId: string, name: string, qty: number): InventoryItem => ({
     name,
     type: "pill",
     description: "测试丹药",
+    basePrice: 30,
     effect: { type: "restore_qi", amount: 10 }
   }
 });
@@ -24,7 +25,8 @@ const material = (itemId: string, name: string, qty: number): InventoryItem => (
     id: itemId,
     name,
     type: "material",
-    description: "炼丹原料"
+    description: "炼丹原料",
+    basePrice: 18
   }
 });
 

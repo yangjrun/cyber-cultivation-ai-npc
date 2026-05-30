@@ -1,6 +1,7 @@
 import type { NpcState } from "../api/chatApi";
 
-export const STORAGE_KEY = "cyber-cultivation.sessionId";
+export const STORAGE_KEY = "lower-city.sessionId";
+export const LEGACY_STORAGE_KEY = "cyber-cultivation.sessionId";
 export const DEFAULT_NPC_ID = "baili";
 export const DEFAULT_SCENE_ID = "black_market";
 export const PLAYER_NAME = "陆玄";
