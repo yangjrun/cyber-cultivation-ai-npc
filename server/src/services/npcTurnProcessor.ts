@@ -10,6 +10,7 @@ import { validateLlmResponse } from "./responseValidator.js";
 import { scopedNpcId as makeScopedNpcId } from "./scopedNpcId.js";
 import { validateWorldview } from "./worldviewValidator.js";
 import { recordTurnFlags } from "./worldStateFlags.js";
+import type { ActionContext } from "../routes/chat.js";
 import type { ChatReply, SpeakMode } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
 import type { SceneSnapshot } from "../types/scene.js";
@@ -23,6 +24,7 @@ export type ProcessNpcTurnInput = {
   priorReplies?: PriorNpcReply[];
   applyActions?: boolean;
   interactionMode?: SpeakMode;
+  actionContext?: ActionContext;
 };
 
 export async function processNpcTurn({
@@ -33,7 +35,8 @@ export async function processNpcTurn({
   scene,
   priorReplies = [],
   applyActions = true,
-  interactionMode
+  interactionMode,
+  actionContext
 }: ProcessNpcTurnInput): Promise<ChatReply> {
   const scopedNpcId = makeScopedNpcId(sessionId, npcId);
   const [retrieved, recent] = await Promise.all([
@@ -58,7 +61,8 @@ export async function processNpcTurn({
       priorReplies,
       speakMode: interactionMode,
       equippedArtifactTags,
-      artifactHints
+      artifactHints,
+      actionContext
     }),
     playerInput,
     npcId

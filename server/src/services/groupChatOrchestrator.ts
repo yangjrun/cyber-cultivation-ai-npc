@@ -2,6 +2,7 @@ import { processNpcTurn } from "./npcTurnProcessor.js";
 import { arbitrateTurn } from "./turnArbiter.js";
 import { getLastSpokeTurns, recordSpeakers } from "./speakerLog.js";
 import { getAllNpcStatesForSession } from "./gameState.js";
+import type { ActionContext } from "../routes/chat.js";
 import type { ChatReply } from "../types/chat.js";
 import type { PlayerState } from "../types/player.js";
 import type { SceneSnapshot } from "../types/scene.js";
@@ -19,6 +20,7 @@ export type OrchestrateGroupChatInput = {
   player: PlayerState;
   playerInput: string;
   scene?: SceneSnapshot;
+  actionContext?: ActionContext;
 };
 
 export async function orchestrateGroupChatTurn({
@@ -26,7 +28,8 @@ export async function orchestrateGroupChatTurn({
   targetNpcId,
   player,
   playerInput,
-  scene
+  scene,
+  actionContext
 }: OrchestrateGroupChatInput): Promise<GroupChatResult> {
   const npcStates = getAllNpcStatesForSession(sessionId);
   const lastSpokeTurns = getLastSpokeTurns(sessionId);
@@ -64,10 +67,12 @@ export async function orchestrateGroupChatTurn({
         scene,
         priorReplies: replies.map(({ npcId, dialogue }) => ({ npcId, dialogue })),
         applyActions: replies.length === 0,
-        interactionMode: speaker.mode
+        interactionMode: speaker.mode,
+        actionContext
       });
       replies.push({ ...reply, speakMode: speaker.mode });
     } catch (error) {
+      console.error(`[groupChatOrchestrator] Failed to process turn for ${speaker.npcId}:`, error);
       if (replies.length === 0) {
         throw error;
       }

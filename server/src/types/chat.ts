@@ -1,7 +1,7 @@
 import type { NpcIntent, NpcState, NpcStateDelta } from "./npc.js";
 import type { PlayerState } from "./player.js";
 
-export type InputMode = "dialogue" | "action" | "monologue";
+export type InputMode = "dialogue" | "action" | "monologue" | "hybrid";
 
 export type SpeakMode = "speak" | "interrupt" | "action_only" | "silent";
 

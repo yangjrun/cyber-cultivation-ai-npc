@@ -1,7 +1,7 @@
 import { fetchJsonWithRetry } from "./apiClient";
 import { defaultPlayer, normalizeInventory, normalizePlayer, type InventoryItem, type PlayerState } from "./sessionApi";
 
-export type InputMode = "dialogue" | "action" | "monologue";
+export type InputMode = "dialogue" | "action" | "monologue" | "hybrid";
 
 export type SpeakMode = "speak" | "interrupt" | "action_only" | "silent";
 
@@ -45,7 +45,7 @@ export type ChatResponse = {
 };
 
 const DEFAULT_DIALOGUE = "……丹炉的蓝火沉默了一瞬。";
-const VALID_MODES: InputMode[] = ["dialogue", "action", "monologue"];
+const VALID_MODES: InputMode[] = ["dialogue", "action", "monologue", "hybrid"];
 
 export async function sendChat(
   playerInput: string,

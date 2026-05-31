@@ -1,5 +1,6 @@
 ﻿import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import type { InputMode } from "../api/chatApi";
 import { ActionPanel } from "../components/ActionPanel";
 import { AlchemyModal } from "../components/AlchemyModal";
 import { GatheringModal } from "../components/GatheringModal";
@@ -229,9 +230,12 @@ export function PlayPage() {
   );
 }
 
-function buildPlaceholder(mode: "dialogue" | "action" | "monologue", activeNpcName: string): string {
+function buildPlaceholder(mode: InputMode, activeNpcName: string): string {
   if (mode === "action") {
     return "描述一个动作……（如：偷摸过去；Enter 发送）";
+  }
+  if (mode === "hybrid") {
+    return `描述动作并对${activeNpcName}说话……（NPC 会回应；Enter 发送）`;
   }
   if (mode === "monologue") {
     return "心声闪过……（NPC 不会听见，但天道镜可能记下）";

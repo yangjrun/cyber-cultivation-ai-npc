@@ -33,6 +33,14 @@ const MODE_OPTIONS: ModeOption[] = [
     idle: "border-rose-400/30 bg-rose-500/5 text-rose-100 hover:border-rose-300/60 hover:bg-rose-500/10"
   },
   {
+    mode: "hybrid",
+    label: "动作+对话",
+    emoji: "🎭",
+    hint: "执行动作并触发 NPC 回应",
+    active: "border-amber-300/80 bg-amber-500/15 text-amber-50",
+    idle: "border-amber-400/30 bg-amber-500/5 text-amber-100 hover:border-amber-300/60 hover:bg-amber-500/10"
+  },
+  {
     mode: "monologue",
     label: "心声",
     emoji: "🤔",

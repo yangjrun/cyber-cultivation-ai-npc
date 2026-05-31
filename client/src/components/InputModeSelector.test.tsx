@@ -6,18 +6,20 @@ import { InputModeSelector } from "./InputModeSelector";
 describe("InputModeSelector", () => {
   afterEach(() => cleanup());
 
-  it("renders three radio buttons with the current value checked", () => {
+  it("renders four radio buttons with the current value checked", () => {
     render(<InputModeSelector value="action" onChange={() => {}} />);
 
     const radios = screen.getAllByRole("radio");
-    expect(radios).toHaveLength(3);
+    expect(radios).toHaveLength(4);
 
-    const action = screen.getByRole("radio", { name: /动作模式/ });
-    const dialogue = screen.getByRole("radio", { name: /对话模式/ });
-    const monologue = screen.getByRole("radio", { name: /心声模式/ });
+    const action = screen.getByRole("radio", { name: /^动作模式/ });
+    const dialogue = screen.getByRole("radio", { name: /^对话模式/ });
+    const hybrid = screen.getByRole("radio", { name: /^动作\+对话模式/ });
+    const monologue = screen.getByRole("radio", { name: /^心声模式/ });
 
     expect(action.getAttribute("aria-checked")).toBe("true");
     expect(dialogue.getAttribute("aria-checked")).toBe("false");
+    expect(hybrid.getAttribute("aria-checked")).toBe("false");
     expect(monologue.getAttribute("aria-checked")).toBe("false");
   });
 
@@ -25,11 +27,14 @@ describe("InputModeSelector", () => {
     const onChange = vi.fn();
     render(<InputModeSelector value="dialogue" onChange={onChange} />);
 
-    await userEvent.click(screen.getByRole("radio", { name: /心声模式/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^心声模式/ }));
     expect(onChange).toHaveBeenCalledWith("monologue");
 
-    await userEvent.click(screen.getByRole("radio", { name: /动作模式/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /^动作模式/ }));
     expect(onChange).toHaveBeenCalledWith("action");
+
+    await userEvent.click(screen.getByRole("radio", { name: /^动作\+对话模式/ }));
+    expect(onChange).toHaveBeenCalledWith("hybrid");
   });
 
   it("disables all buttons when disabled=true", () => {

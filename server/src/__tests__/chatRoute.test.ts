@@ -255,7 +255,7 @@ describe("POST /api/chat", () => {
       kind: "action",
       intent: { type: "none", params: {} }
     });
-    expect(response.body.replies[0].dialogue).toContain("潜行");
+    expect(response.body.replies[0].dialogue).toContain("悄无声息");
     expect(response.body.groupChat).toEqual({ sceneId: "black_market", speakerOrder: ["narrator"] });
 
     const memory = getRecentMemories(`${sessionId}::baili`, 5);
@@ -280,7 +280,7 @@ describe("POST /api/chat", () => {
       .expect(200);
 
     expect(response.body.mode).toBe("action");
-    expect(response.body.replies[0].dialogue).toContain("出手");
+    expect(response.body.replies[0].dialogue).toContain("迅如闪电");
     expect(response.body.replies[0].affectedStates).toBeDefined();
     expect(response.body.replies[0].affectedStates.chimu.anger).toBeGreaterThan(chimuBefore.anger);
     expect(response.body.replies[0].affectedStates.qinggu.tianDaoAlert).toBeGreaterThan(qingguBefore.tianDaoAlert);
@@ -374,6 +374,39 @@ describe("POST /api/chat", () => {
       speakMode: "action_only"
     });
     expect(response.body.replies[0].actions.length).toBeGreaterThan(0);
+  });
+
+  it("combines a narrator action reply with NPC replies in hybrid mode", async () => {
+    const app = createApp();
+    const sessionId = await createTestSession(app);
+
+    const response = await request(app)
+      .post("/api/chat")
+      .send({ playerInput: "偷偷打量丹炉，我要买屏蔽药", npcId: "baili", sessionId, inputMode: "hybrid" })
+      .expect(200);
+
+    expect(response.body.mode).toBe("hybrid");
+
+    const [narrator, ...npcReplies] = response.body.replies;
+    expect(narrator).toMatchObject({
+      npcId: "narrator",
+      kind: "action",
+      intent: { type: "none", params: {} }
+    });
+    expect(narrator.dialogue).toContain("悄无声息");
+
+    // At least one NPC responded to the action+dialogue
+    expect(npcReplies.length).toBeGreaterThan(0);
+    expect(npcReplies.every((reply: { npcId: string }) => reply.npcId !== "narrator")).toBe(true);
+
+    expect(response.body.groupChat.speakerOrder[0]).toBe("narrator");
+    expect(response.body.groupChat.speakerOrder).toEqual(
+      response.body.replies.map((reply: { npcId: string }) => reply.npcId)
+    );
+
+    // The action narration is recorded as a player-action memory for the target NPC
+    const memory = getRecentMemories(`${sessionId}::baili`, 5);
+    expect(memory.some((entry) => entry.includes("偷偷打量丹炉"))).toBe(true);
   });
 
   it("rejects unknown inputMode values", async () => {

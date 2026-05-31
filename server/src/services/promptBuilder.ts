@@ -5,6 +5,7 @@ import { getTechnique, techniques } from "../data/techniques.js";
 import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
 import { getExemplars, getRoleCard } from "./promptParts/index.js";
 import { getWorldviewPreamble } from "./promptParts/worldview.js";
+import type { ActionContext } from "../routes/chat.js";
 import type { LlmMessage } from "../types/llm.js";
 import type { NpcState } from "../types/npc.js";
 import type { PlayerState, RootElement } from "../types/player.js";
@@ -28,6 +29,7 @@ export type UserTurnInput = {
   activeQuests?: QuestProgress[];
   equippedArtifactTags?: string[];
   artifactHints?: string[];
+  actionContext?: ActionContext;
 };
 
 export type PromptInput = {
@@ -40,6 +42,7 @@ export type PromptInput = {
   activeQuests?: QuestProgress[];
   equippedArtifactTags?: string[];
   artifactHints?: string[];
+  actionContext?: ActionContext;
 };
 
 export type PriorNpcReply = {
@@ -136,6 +139,7 @@ export function buildUserTurn(input: UserTurnInput): string {
   const artifactHintSection = (input.artifactHints ?? []).length > 0
     ? `${profile.name}注意到的法宝细节：\n${(input.artifactHints ?? []).map((hint) => `- ${hint}`).join("\n")}`
     : "";
+  const actionSection = input.actionContext ? buildActionContextSection(input.actionContext) : "";
   const name = profile.name;
 
   const sections = [
@@ -155,6 +159,7 @@ export function buildUserTurn(input: UserTurnInput): string {
     memoryText,
     questSection,
     artifactHintSection,
+    actionSection,
     "",
     `${name}刚听到对方说：`,
     input.playerInput
@@ -194,7 +199,8 @@ export function buildPromptMessages(input: PromptMessagesInput): LlmMessage[] {
       scene: input.scene,
       activeQuests: input.activeQuests,
       equippedArtifactTags: input.equippedArtifactTags,
-      artifactHints: input.artifactHints
+      artifactHints: input.artifactHints,
+      actionContext: input.actionContext
     })
   ].filter((section) => section !== "");
 
@@ -318,6 +324,14 @@ function buildSceneSection(scene: SceneSnapshot, currentNpcId: string): string {
 
   const sceneText = `场景：${scene.scene.name}——${scene.scene.description}`;
   return peers ? `\n${sceneText}\n同场景其他在场：\n${peers}` : `\n${sceneText}`;
+}
+
+function buildActionContextSection(actionContext: ActionContext): string {
+  const targetInfo = actionContext.targetNpcId
+    ? `（目标：${getNpcProfile(actionContext.targetNpcId).name}）`
+    : "";
+
+  return `\n玩家刚才的动作${targetInfo}：\n${actionContext.narration}\n\n请基于玩家的动作和话语做出回应。`;
 }
 
 function buildQuestSection(quests: QuestProgress[], name: string): string {
