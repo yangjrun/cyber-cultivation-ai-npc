@@ -14,8 +14,8 @@ export function MilestonePanel() {
 
   return (
     <section className="cultivation-panel cultivation-corner relative overflow-hidden p-4">
-      <header className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-violet-300/80">
-        <span>// milestones</span>
+      <header className="mb-3 flex items-center justify-between text-[11px] uppercase tracking-wider text-violet-300/85">
+        <span>里程碑</span>
         <span>
           {milestones.length}
           {total > 0 ? ` / ${total}` : ""}

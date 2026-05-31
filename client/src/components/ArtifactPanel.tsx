@@ -15,9 +15,9 @@ export function ArtifactPanel() {
 
   return (
     <section className="cultivation-panel cultivation-corner relative overflow-hidden p-4">
-      <header className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-amber-300/80">
-        <span>// artifacts</span>
-        <span>{artifacts.length}</span>
+      <header className="mb-3 flex items-center justify-between text-[11px] uppercase tracking-wider text-amber-300/85">
+        <span>法宝</span>
+        <span>{artifacts.length} 件</span>
       </header>
 
       {loading && artifacts.length === 0 ? (

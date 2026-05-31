@@ -17,17 +17,17 @@ export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
 
   return (
     <aside className="cultivation-panel cultivation-corner relative overflow-hidden p-5">
-      <div className="mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.4em] text-cyan-300/80">
+      <div className="mb-4 flex items-center justify-between text-[11px] uppercase tracking-wider text-cyan-300/85">
         <span>九龙下城 · 无相黑市</span>
         <span
-          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
+          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] tracking-wider ${
             isReal
               ? "border-cyan-400/40 text-cyan-100"
               : "border-amber-400/40 text-amber-100"
           }`}
         >
           <span className={`cultivation-pulse-dot ${isReal ? "" : "!bg-amber-300 !shadow-[0_0_12px_rgba(251,191,36,0.7)]"}`} />
-          {isReal ? "LLM ONLINE" : "MOCK MODE"}
+          {isReal ? "AI 在线" : "模拟模式"}
         </span>
       </div>
 
@@ -42,7 +42,7 @@ export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
         <h1 className="mt-5 text-2xl font-semibold text-white cultivation-glow-text">白璃</h1>
         <p className="mt-1 text-sm text-cyan-200">黑市炼丹师</p>
         <p className="mt-1 text-xs text-slate-400">九龙下城 · 无相黑市 · 白璃丹铺</p>
-        <p className="mt-2 inline-flex items-center rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-0.5 text-[11px] text-violet-100">
+        <p className="mt-2 inline-flex items-center rounded-full border border-violet-400/40 bg-violet-500/10 px-3 py-0.5 text-xs text-violet-100">
           派系 · 无相黑市
         </p>
       </div>
@@ -59,13 +59,13 @@ export function NpcProfilePanel({ mode = "real" }: NpcProfilePanelProps) {
       </div>
 
       <div className="mt-5 border-t border-cyan-400/15 pt-4">
-        <div className="mb-2 text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">
-          // case_file
+        <div className="mb-2 text-[11px] uppercase tracking-wider text-cyan-300/85">
+          档案记录
         </div>
         <p className="whitespace-pre-line text-sm leading-7 text-slate-300">{description}</p>
       </div>
 
-      <div className="mt-5 rounded-lg border border-rose-400/25 bg-rose-500/5 p-3 text-[11px] leading-6 text-rose-100">
+      <div className="mt-5 rounded-lg border border-rose-400/25 bg-rose-500/5 p-3 text-xs leading-6 text-rose-100">
         <span className="font-semibold tracking-widest text-rose-200">目标：</span>
         玩家{player.name} · {player.realm} · {traitLine}。
       </div>

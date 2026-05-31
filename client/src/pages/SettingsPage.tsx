@@ -12,7 +12,7 @@ export function SettingsPage() {
     <section className="cultivation-panel cultivation-corner mx-auto max-w-2xl space-y-4 p-6">
       <header>
         <h1 className="text-lg font-semibold text-cyan-50 cultivation-glow-text">设置与调试</h1>
-        <p className="mt-1 text-xs uppercase tracking-[0.3em] text-cyan-200/60">// settings</p>
+        <p className="mt-1 text-xs uppercase tracking-wider text-cyan-200/85">设置</p>
       </header>
 
       <dl className="grid grid-cols-1 gap-2 text-sm text-slate-200 sm:grid-cols-2">

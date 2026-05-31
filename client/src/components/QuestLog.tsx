@@ -24,9 +24,9 @@ export function QuestLog() {
 
   return (
     <section className="cultivation-panel cultivation-corner space-y-3 p-4">
-      <header className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-amber-300/80">
-        <span>// quest_log</span>
-        <span>active {active.length} · done {finished.length}</span>
+      <header className="flex items-center justify-between text-[11px] uppercase tracking-wider text-amber-300/85">
+        <span>任务日志</span>
+        <span>进行中 {active.length} · 已完成 {finished.length}</span>
       </header>
 
       {quests.length === 0 ? (

@@ -21,9 +21,9 @@ export function NpcListPanel() {
 
   return (
     <section className="cultivation-panel cultivation-corner space-y-2 p-3">
-      <header className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">
-        <span>// in_scene</span>
-        <span>{npcIds.length} NPC</span>
+      <header className="flex items-center justify-between text-[11px] uppercase tracking-wider text-cyan-300/85">
+        <span>场景角色</span>
+        <span>{npcIds.length} 位</span>
       </header>
       <ul className="space-y-2">
         {npcIds.map((npcId) => {
@@ -43,7 +43,7 @@ export function NpcListPanel() {
               >
                 <span className="font-semibold">{getNpcName(npcId)}</span>
                 <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400">
-                  T{state.trust} A{state.anger}
+                  信{state.trust} 怒{state.anger}
                 </span>
               </button>
               <button

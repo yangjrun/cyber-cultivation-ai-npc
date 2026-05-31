@@ -36,7 +36,7 @@ export function AlchemyModal() {
       <div className="cultivation-panel cultivation-panel--rose cultivation-corner w-full max-w-lg p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.35em] text-rose-300/70">// alchemy_furnace</p>
+            <p className="text-[11px] uppercase tracking-wider text-rose-300/85">炼丹炉</p>
             <h2 className="mt-1 text-xl font-semibold text-rose-100">黑市炼丹炉</h2>
           </div>
           <button type="button" onClick={close} className="rounded border border-slate-500/40 px-2 py-1 text-xs text-slate-200 hover:border-rose-200">

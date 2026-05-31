@@ -39,34 +39,53 @@ describe("InventoryPanel", () => {
     cleanup();
   });
 
-  it("shows placeholder when inventory is empty", () => {
+  it("shows expand/collapse button", () => {
     render(<InventoryPanel />);
+    expect(screen.getByText("展开背包 ▼")).toBeTruthy();
+  });
+
+  it("shows placeholder when inventory is empty and expanded", async () => {
+    const user = userEvent.setup();
+    render(<InventoryPanel />);
+
+    await user.click(screen.getByText("展开背包 ▼"));
     expect(screen.getByText("背包空空，连丹渣都没有。")).toBeTruthy();
   });
 
-  it("renders each item's name, description and ×quantity", () => {
+  it("renders each item's name, description and ×quantity when expanded", async () => {
+    const user = userEvent.setup();
     useGameStore.setState({
       inventory: [pill("cloud_veil_pill", "遮云丹", 2), material("yinglui", "影髓草", 5)]
     });
 
     render(<InventoryPanel />);
+
+    // Not visible when collapsed
+    expect(screen.queryByText("遮云丹")).toBeNull();
+
+    // Expand to see items
+    await user.click(screen.getByText("展开背包 ▼"));
     expect(screen.getByText("遮云丹")).toBeTruthy();
     expect(screen.getByText("影髓草")).toBeTruthy();
     expect(screen.getByText("×2")).toBeTruthy();
     expect(screen.getByText("×5")).toBeTruthy();
   });
 
-  it("renders 使用 button only for pills, not for materials", () => {
+  it("renders 使用 button only for pills, not for materials when expanded", async () => {
+    const user = userEvent.setup();
     useGameStore.setState({
       inventory: [pill("cloud_veil_pill", "遮云丹", 1), material("yinglui", "影髓草", 1)]
     });
 
     render(<InventoryPanel />);
+    await user.click(screen.getByText("展开背包 ▼"));
+
     const useButtons = screen.getAllByRole("button", { name: "使用" });
     expect(useButtons).toHaveLength(1);
   });
 
   it("clicking 使用 fires consumeItem with the itemId", async () => {
+    const user = userEvent.setup();
     const consumeSpy = vi.fn().mockResolvedValue(undefined);
     useGameStore.setState({
       inventory: [pill("cloud_veil_pill", "遮云丹", 1)],
@@ -74,16 +93,18 @@ describe("InventoryPanel", () => {
     });
 
     render(<InventoryPanel />);
-    await userEvent.click(screen.getByRole("button", { name: "使用" }));
+    await user.click(screen.getByText("展开背包 ▼"));
+    await user.click(screen.getByRole("button", { name: "使用" }));
     expect(consumeSpy).toHaveBeenCalledWith("cloud_veil_pill");
   });
 
   it("clicking 炼丹 fires openAlchemyModal", async () => {
+    const user = userEvent.setup();
     const openSpy = vi.fn();
     useGameStore.setState({ openAlchemyModal: openSpy });
 
     render(<InventoryPanel />);
-    await userEvent.click(screen.getByRole("button", { name: "炼丹" }));
+    await user.click(screen.getByRole("button", { name: "炼丹" }));
     expect(openSpy).toHaveBeenCalledTimes(1);
   });
 });

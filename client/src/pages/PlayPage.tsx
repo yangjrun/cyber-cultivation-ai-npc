@@ -107,10 +107,11 @@ export function PlayPage() {
         <SceneBackdrop />
       </div>
 
-      <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="mt-4 grid gap-5 md:grid-cols-1 lg:grid-cols-[280px_1fr_320px]">
         <div className="space-y-4">
           <NpcListPanel />
           <NpcProfilePanel mode="real" />
+          <StatePanel state={npcState} />
         </div>
 
         <section className="flex flex-col gap-4">
@@ -138,10 +139,10 @@ export function PlayPage() {
             </div>
           ) : null}
 
-          <div className="cultivation-panel cultivation-panel--cyan cultivation-corner relative overflow-hidden p-4">
-            <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">
-              <span>// quick_link</span>
-              <span>tab × {quickPrompts.length}</span>
+          <div className="sticky bottom-0 z-10 cultivation-panel cultivation-panel--cyan cultivation-corner relative overflow-hidden p-4 bg-slate-950/95 backdrop-blur-sm">
+            <div className="mb-3 flex items-center justify-between text-[11px] uppercase tracking-wider text-cyan-300/85">
+              <span>快捷输入</span>
+              <span>共 {quickPrompts.length} 条</span>
             </div>
             <QuickPromptButtons
               prompts={quickPrompts}
@@ -150,7 +151,7 @@ export function PlayPage() {
             />
 
             <div className="mt-3 flex items-center justify-between gap-2">
-              <span className="text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">// input_mode</span>
+              <span className="text-[11px] uppercase tracking-wider text-cyan-300/85">输入模式</span>
               <InputModeSelector
                 value={inputMode}
                 disabled={loading || sessionLoading}
@@ -173,8 +174,8 @@ export function PlayPage() {
                 maxLength={MAX_INPUT * 4}
                 className="cultivation-scroll block w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500"
               />
-              <div className="flex items-center justify-between border-t border-cyan-400/15 px-2 pt-2 text-[11px]">
-                <span className="font-mono text-slate-500">
+              <div className="flex items-center justify-between border-t border-cyan-400/15 px-2 pt-2 text-xs">
+                <span className="font-mono text-slate-400">
                   当前字数 <span className="text-cyan-200">{inputLength}</span> / {MAX_INPUT}
                 </span>
                 <div className="flex items-center gap-2">
@@ -204,8 +205,8 @@ export function PlayPage() {
             ) : null}
           </div>
 
-          <p className="text-center text-[11px] uppercase tracking-[0.35em] text-slate-500">
-            // demo · AI 只产出台词与意图，状态变化由游戏系统校验
+          <p className="text-center text-xs uppercase tracking-wider text-slate-400">
+            演示版本 · AI 生成对话与意图，状态由系统验证
           </p>
         </section>
 
@@ -216,7 +217,6 @@ export function PlayPage() {
           <QuestLog />
           <MilestonePanel />
           <ArtifactPanel />
-          <StatePanel state={npcState} />
           <MemoryPanel memories={memories} npcName={activeNpcName} />
           <ActionPanel actionResult={lastActionResult} intentType={lastIntent} />
           <SystemLogPanel logs={systemLogs} />
