@@ -1,6 +1,6 @@
 import { rootLabels } from "../data/cultivationBalance.js";
 import { items } from "../data/items.js";
-import { getQuestsByGiver } from "../data/quests.js";
+import { getQuestsByGiver, getQuestDefinition } from "../data/quests.js";
 import { getTechnique, techniques } from "../data/techniques.js";
 import { allowedIntents, getNpcProfile, getNpcState } from "./gameState.js";
 import { getExemplars, getRoleCard } from "./promptParts/index.js";
@@ -91,6 +91,7 @@ ${roleCard}
 - complete_trade：本轮台词里达成了具体的交易结算（钱货两清、交易当场完成）。params 必须包含上一个 offer_trade 里的 itemId。系统会自动按市价扣灵石结账，你的台词里可以报个数字但不影响实际扣款。
 - teach_technique：${name}传授一门吐纳/功法（technique_id 必须在白名单内）。
 - give_quest：${name}决定派活给玩家，让玩家先去帮${name}做一件事再谈${questIds.length > 0 ? `（quest_id 只能是 ${questIds.join("、")}）` : "（注：本 NPC 不派任务）"}。
+- complete_quest_objective：玩家完成了某个任务目标（例如送货到了、情报收集完了）。params 必须包含 quest_id 和 flag_key（例如 {"quest_id": "baili_delivery_run", "flag_key": "delivery_done"}）。
 - refuse_service：本单不做了——驱客、撵人、关门、明确说不卖。只在真的关门时使用。
 - report_player：当面不动声色，事后偷偷向监察院递线（用于积累的报复，不会当面说出来）。
 - none：${name}只是讽刺、回怼、闲聊、抱怨、警告，没有任何商业或剧情动作触发。"嘴硬但没动手"默认归 none。
@@ -341,7 +342,13 @@ function buildQuestSection(quests: QuestProgress[], name: string): string {
     return "";
   }
 
-  const lines = active.map((quest) => `- ${quest.questId}（${quest.status}）`).join("\n");
+  const lines = active.map((quest) => {
+    const def = getQuestDefinition(quest.questId);
+    if (!def) {
+      return `- ${quest.questId}（${quest.status}）`;
+    }
+    return `- ${def.title}（${quest.questId}，${quest.status}）\n  任务内容：${def.description}`;
+  }).join("\n");
   return `\n${name}相关的进行中任务：\n${lines}`;
 }
 

@@ -123,6 +123,26 @@ function processQuest(
     return;
   }
 
+  // Handle complete_quest_objective intent
+  if (intent.type === "complete_quest_objective" &&
+      intent.params.quest_id === definition.questId &&
+      typeof intent.params.flag_key === "string") {
+    const flagKey = intent.params.flag_key as string;
+    const updatedProgress = markQuestFlag(sessionId, definition.questId, flagKey, true);
+
+    if (status === "accepted") {
+      const progressed = transitionToInProgress(sessionId, updatedProgress);
+      evaluation.statusChanges.push({ questId: definition.questId, from: "accepted", to: "in_progress" });
+      checkCompletionAndFailure(sessionId, baseNpcId, intent, definition, progressed, evaluation);
+      return;
+    }
+
+    if (status === "in_progress") {
+      checkCompletionAndFailure(sessionId, baseNpcId, intent, definition, updatedProgress, evaluation);
+      return;
+    }
+  }
+
   if (status === "accepted") {
     const progressed = transitionToInProgress(sessionId, current);
     evaluation.statusChanges.push({ questId: definition.questId, from: "accepted", to: "in_progress" });

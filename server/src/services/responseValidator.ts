@@ -190,6 +190,18 @@ function normalizeIntent(value: unknown): NpcIntent {
     return { type, params: {} };
   }
 
+  if (type === "complete_quest_objective") {
+    const params = isRecord(value.params) ? value.params : {};
+    const questId = typeof params.quest_id === "string" ? params.quest_id : null;
+    const flagKey = typeof params.flag_key === "string" ? params.flag_key : null;
+
+    if (questId && flagKey && getQuestDefinition(questId)) {
+      return { type, params: { quest_id: questId, flag_key: flagKey } };
+    }
+
+    return { type: "none", params: {} };
+  }
+
   return {
     type,
     params: {}

@@ -9,7 +9,7 @@ import { computeBuyUnitPrice, isTradeRefused } from "./tradeEngine.js";
 import { adjustShopBalance, adjustShopStock, getShopItemQuantity } from "./tradeStore.js";
 import type { IntentType, NpcIntent, NpcProfile, NpcState, NpcStateDelta } from "../types/npc.js";
 
-export const allowedIntents = ["none", "offer_trade", "complete_trade", "teach_technique", "give_quest", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
+export const allowedIntents = ["none", "offer_trade", "complete_trade", "teach_technique", "give_quest", "complete_quest_objective", "report_player", "refuse_service"] as const satisfies readonly IntentType[];
 
 export const npcProfiles: Record<string, NpcProfile> = npcProfilesData;
 

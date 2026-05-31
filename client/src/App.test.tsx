@@ -113,7 +113,9 @@ describe("App", () => {
     });
 
     const input = await screen.findByRole("textbox");
-    await user.type(input, "雷".repeat(100));
+    // Use paste instead of type for performance with large strings
+    await user.click(input);
+    await user.paste("雷".repeat(100));
 
     expect(Array.from((input as HTMLTextAreaElement).value)).toHaveLength(80);
   });

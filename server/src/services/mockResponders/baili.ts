@@ -19,6 +19,26 @@ export function respond(playerInput: string): ValidatedNpcResponse {
     };
   }
 
+  if (includesAny(playerInput, ["送货", "跑腿", "送药", "帮忙", "活", "任务"])) {
+    return {
+      dialogue: "替我走趟货。送到雷罚酒馆，见影骨符，递丹子。",
+      tone: "冷淡",
+      intent: {
+        type: "give_quest",
+        params: {
+          quest_id: "baili_delivery_run"
+        }
+      },
+      state_delta: {
+        trust: 0,
+        fear: 0,
+        anger: 0,
+        tianDaoAlert: 0
+      },
+      memory: "玩家接了送货任务。"
+    };
+  }
+
   if (includesAny(playerInput, ["丹药", "扫描", "望气"])) {
     return {
       dialogue: "能做，但你得先偷一枚监察密钥。",

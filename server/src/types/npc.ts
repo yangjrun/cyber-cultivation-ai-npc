@@ -7,7 +7,7 @@ export type NpcState = {
 
 export type NpcStateDelta = NpcState;
 
-export type IntentType = "none" | "offer_trade" | "complete_trade" | "teach_technique" | "give_quest" | "report_player" | "refuse_service";
+export type IntentType = "none" | "offer_trade" | "complete_trade" | "teach_technique" | "give_quest" | "complete_quest_objective" | "report_player" | "refuse_service";
 
 export type NpcIntent = {
   type: IntentType;

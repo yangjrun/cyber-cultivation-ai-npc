@@ -1,6 +1,27 @@
 import type { ValidatedNpcResponse } from "../../types/chat.js";
 
 export function respond(playerInput: string): ValidatedNpcResponse {
+  if (includesAny(playerInput, ["送货", "交货", "白璃让我", "送药", "回气丹", "货", "交差"])) {
+    return {
+      dialogue: "白璃的货？放这儿。",
+      tone: "冷淡",
+      intent: {
+        type: "complete_quest_objective",
+        params: {
+          quest_id: "baili_delivery_run",
+          flag_key: "delivery_done"
+        }
+      },
+      state_delta: {
+        trust: 1,
+        fear: 0,
+        anger: 0,
+        tianDaoAlert: 0
+      },
+      memory: "玩家替白璃送货过来。"
+    };
+  }
+
   if (includesAny(playerInput, ["让我过", "过路", "让路", "借过"])) {
     return {
       dialogue: "过路费，三十灵石。",
