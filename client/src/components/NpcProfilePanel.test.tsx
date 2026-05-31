@@ -5,16 +5,16 @@ import { NpcProfilePanel } from "./NpcProfilePanel";
 describe("NpcProfilePanel", () => {
   afterEach(() => cleanup());
 
-  it("shows LLM ONLINE indicator in real mode (default)", () => {
+  it("shows AI 在线 indicator in real mode (default)", () => {
     render(<NpcProfilePanel />);
-    expect(screen.getByText("LLM ONLINE")).toBeTruthy();
-    expect(screen.queryByText("MOCK MODE")).toBeNull();
+    expect(screen.getByText("AI 在线")).toBeTruthy();
+    expect(screen.queryByText("模拟模式")).toBeNull();
   });
 
-  it("shows MOCK MODE indicator when mode=mock", () => {
+  it("shows 模拟模式 indicator when mode=mock", () => {
     render(<NpcProfilePanel mode="mock" />);
-    expect(screen.getByText("MOCK MODE")).toBeTruthy();
-    expect(screen.queryByText("LLM ONLINE")).toBeNull();
+    expect(screen.getByText("模拟模式")).toBeTruthy();
+    expect(screen.queryByText("AI 在线")).toBeNull();
   });
 
   it("renders Baili portrait label + 4 personality tags + case file description", () => {

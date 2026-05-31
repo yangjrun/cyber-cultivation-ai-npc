@@ -24,7 +24,7 @@ export default function App() {
   }, [initializeSession, sessionId]);
 
   return (
-    <main className="cultivation-shell px-4 py-6 text-slate-100">
+    <main className="cultivation-shell min-h-screen px-4 py-6 text-slate-100">
       <div className="relative z-10 mx-auto max-w-7xl">
         <TopNav />
         <Routes>
@@ -70,7 +70,7 @@ function TopNav() {
   return (
     <nav className="mb-4 flex items-center justify-between border-b border-cyan-400/15 pb-3">
       <div>
-        <div className="text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">// lower_city</div>
+        <div className="text-[11px] uppercase tracking-wider text-cyan-300/85">九龙下城</div>
         <h1 className="text-lg font-semibold text-cyan-50 cultivation-glow-text">九龙下城 · 以仙途</h1>
       </div>
       <div className="flex items-center gap-2 text-xs">

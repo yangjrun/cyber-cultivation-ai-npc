@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef, memo, useState, useCallback } from "react";
 import type { InputMode, SpeakMode } from "../api/chatApi";
 
 export type ChatMessage = {
@@ -22,28 +22,47 @@ type DialoguePanelProps = {
 
 export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+
+    const isAtBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 50;
+    setIsUserScrolling(!isAtBottom);
+  }, []);
 
   useEffect(() => {
     const node = scrollRef.current;
 
-    if (node) {
-      node.scrollTop = node.scrollHeight;
+    if (node && !isUserScrolling) {
+      // Use scrollIntoView for smoother behavior when available (browser)
+      // Fall back to scrollTop for test environments (jsdom)
+      const lastChild = node.lastElementChild;
+      if (lastChild) {
+        if (typeof lastChild.scrollIntoView === 'function') {
+          lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        } else {
+          // Fallback for test environments
+          node.scrollTop = node.scrollHeight;
+        }
+      }
     }
-  }, [messages, loading]);
+  }, [messages, loading, isUserScrolling]);
 
   return (
-    <section className="cultivation-panel cultivation-corner flex min-h-[520px] flex-1 flex-col overflow-hidden p-5">
+    <section className="cultivation-panel cultivation-corner flex min-h-[500px] max-h-[70vh] flex-col overflow-hidden p-5">
       <header className="mb-4 flex items-end justify-between border-b border-cyan-400/15 pb-3">
         <div>
-          <div className="text-xs uppercase tracking-[0.4em] text-cyan-200/70">channel</div>
+          <div className="text-xs uppercase tracking-wider text-cyan-200/85">通信频道</div>
           <h2 className="mt-1 text-xl font-semibold text-cyan-50 cultivation-glow-text">
             黑市丹铺通信频道
           </h2>
-          <p className="mt-1 text-[11px] uppercase tracking-[0.3em] text-violet-200/70">
-            加密灵识链路 · Tiandao Cloud Unverified
+          <p className="mt-1 text-xs uppercase tracking-wider text-violet-200/85">
+            加密灵识链路 · 天道云未验证
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.35em] text-emerald-200">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-emerald-200">
           <span className="cultivation-pulse-dot !bg-emerald-300 !shadow-[0_0_12px_rgba(110,231,183,0.8)]" />
           live
         </div>
@@ -51,6 +70,7 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
 
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="cultivation-scroll flex-1 space-y-3 overflow-y-auto pr-2"
       >
         {messages.length === 0 ? (
@@ -72,7 +92,65 @@ export function DialoguePanel({ messages, loading }: DialoguePanelProps) {
   );
 }
 
-function ChatBubble({ message }: { message: ChatMessage }) {
+type ToneConfig = {
+  bubble: string;
+  header: string;
+  intent: string;
+};
+
+const NPC_TONE_MAP: Record<string, ToneConfig> = {
+  chimu: {
+    bubble: "border-rose-400/30 bg-rose-500/5 shadow-rose-500/70",
+    header: "text-rose-200",
+    intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
+  },
+  qinggu: {
+    bubble: "border-amber-400/30 bg-amber-500/5 shadow-amber-500/70",
+    header: "text-amber-200",
+    intent: "border-amber-400/40 bg-amber-500/10 text-amber-200"
+  },
+  suhe: {
+    bubble: "border-emerald-400/30 bg-emerald-500/5 shadow-emerald-500/70",
+    header: "text-emerald-200",
+    intent: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
+  },
+  default: {
+    bubble: "border-violet-400/30 bg-violet-500/5 shadow-violet-500/70",
+    header: "text-violet-200",
+    intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
+  }
+};
+
+function getNpcTone(npcId: string | undefined): ToneConfig {
+  return NPC_TONE_MAP[npcId ?? "default"] ?? NPC_TONE_MAP.default;
+}
+
+type NarratorStyle = {
+  border: string;
+  bg: string;
+  header: string;
+  text: string;
+};
+
+function getNarratorStyle(kind: ChatMessage["kind"]): NarratorStyle {
+  if (kind === "monologue") {
+    return {
+      border: "border-violet-400/30",
+      bg: "bg-violet-500/5",
+      header: "text-violet-200/80",
+      text: "text-violet-100/80"
+    };
+  }
+
+  return {
+    border: "border-rose-400/30",
+    bg: "bg-rose-500/5",
+    header: "text-rose-200/80",
+    text: "text-rose-100"
+  };
+}
+
+const ChatBubble = memo(({ message }: { message: ChatMessage }) => {
   if (message.speaker === "narrator") {
     return <NarratorBubble message={message} />;
   }
@@ -100,8 +178,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       <header
         className={
           isPlayer
-            ? "mb-1 flex items-center justify-end gap-3 text-[10px] uppercase tracking-[0.3em] text-cyan-200"
-            : `mb-1 flex items-center gap-3 text-[10px] uppercase tracking-[0.3em] ${tone.header}`
+            ? "mb-1 flex items-center justify-end gap-3 text-[11px] uppercase tracking-wider text-cyan-200"
+            : `mb-1 flex items-center gap-3 text-[11px] uppercase tracking-wider ${tone.header}`
         }
       >
         <span>{message.name}</span>
@@ -138,15 +216,17 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       ) : null}
     </article>
   );
-}
+});
 
-function ActionOnlyBubble({ message }: { message: ChatMessage }) {
+ChatBubble.displayName = "ChatBubble";
+
+const ActionOnlyBubble = memo(({ message }: { message: ChatMessage }) => {
   return (
     <article
       data-testid="action-only-bubble"
       className="mx-16 rounded-xl border border-slate-500/20 bg-slate-700/10 p-2 text-center shadow-[0_0_12px_-12px]"
     >
-      <header className="mb-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.3em] text-slate-400/70">
+      <header className="mb-1 flex items-center justify-center gap-2 text-[11px] uppercase tracking-wider text-slate-400/85">
         <span>{message.name}</span>
         <span className="font-mono text-slate-500">{message.timestamp}</span>
       </header>
@@ -155,9 +235,11 @@ function ActionOnlyBubble({ message }: { message: ChatMessage }) {
       </p>
     </article>
   );
-}
+});
 
-function NarratorBubble({ message }: { message: ChatMessage }) {
+ActionOnlyBubble.displayName = "ActionOnlyBubble";
+
+const NarratorBubble = memo(({ message }: { message: ChatMessage }) => {
   const style = getNarratorStyle(message.kind);
 
   return (
@@ -166,65 +248,13 @@ function NarratorBubble({ message }: { message: ChatMessage }) {
       data-kind={message.kind ?? "action"}
       className={`mx-12 rounded-xl border ${style.border} ${style.bg} p-3 text-center shadow-[0_0_18px_-12px]`}
     >
-      <header className={`mb-1 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.3em] ${style.header}`}>
+      <header className={`mb-1 flex items-center justify-center gap-3 text-[11px] uppercase tracking-wider ${style.header}`}>
         <span>{message.name}</span>
         <span className="font-mono text-slate-500">{message.timestamp}</span>
       </header>
       <p className={`text-sm italic leading-6 ${style.text}`}>{message.text}</p>
     </article>
   );
-}
+});
 
-function getNarratorStyle(kind: ChatMessage["kind"]) {
-  if (kind === "monologue") {
-    return {
-      border: "border-violet-400/30",
-      bg: "bg-violet-500/5",
-      header: "text-violet-200/80",
-      text: "text-violet-100/80"
-    };
-  }
-
-  return {
-    border: "border-rose-400/30",
-    bg: "bg-rose-500/5",
-    header: "text-rose-200/80",
-    text: "text-rose-100"
-  };
-}
-
-function getNpcTone(npcId: string | undefined) {
-  if (npcId === "chimu") {
-    return {
-      bubble: "border-rose-400/30 bg-rose-500/5 shadow-rose-500/70",
-      header: "text-rose-200",
-      meta: "text-rose-200/80",
-      intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
-    };
-  }
-
-  if (npcId === "qinggu") {
-    return {
-      bubble: "border-amber-400/30 bg-amber-500/5 shadow-amber-500/70",
-      header: "text-amber-200",
-      meta: "text-amber-200/80",
-      intent: "border-amber-400/40 bg-amber-500/10 text-amber-200"
-    };
-  }
-
-  if (npcId === "suhe") {
-    return {
-      bubble: "border-emerald-400/30 bg-emerald-500/5 shadow-emerald-500/70",
-      header: "text-emerald-200",
-      meta: "text-emerald-200/80",
-      intent: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200"
-    };
-  }
-
-  return {
-    bubble: "border-violet-400/30 bg-violet-500/5 shadow-violet-500/70",
-    header: "text-violet-200",
-    meta: "text-rose-200/80",
-    intent: "border-rose-400/40 bg-rose-500/10 text-rose-200"
-  };
-}
+NarratorBubble.displayName = "NarratorBubble";

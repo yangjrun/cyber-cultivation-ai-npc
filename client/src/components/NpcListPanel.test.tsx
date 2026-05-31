@@ -25,7 +25,7 @@ describe("NpcListPanel", () => {
     expect(screen.getByText("当前场景没有可对话的 NPC。")).toBeTruthy();
   });
 
-  it("renders one button per NPC in the active scene with Chinese name + trust/anger badge", () => {
+  it("renders one button per NPC in the active scene with Chinese name + 信任/愤怒 badge", () => {
     useGameStore.setState({
       activeSceneId: "black_market",
       activeNpcId: "baili",
@@ -46,8 +46,8 @@ describe("NpcListPanel", () => {
     });
 
     render(<NpcListPanel />);
-    expect(screen.getByRole("button", { name: /白璃.*T20.*A0/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /苏鹤.*T0.*A30/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /白璃.*信20.*怒0/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /苏鹤.*信0.*怒30/ })).toBeTruthy();
   });
 
   it("marks the active NPC with aria-pressed=true", () => {

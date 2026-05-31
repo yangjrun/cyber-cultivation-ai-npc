@@ -21,12 +21,12 @@ export function StatePanel({ state }: StatePanelProps) {
       </header>
 
       <div className="space-y-3">
-        <StatBar label="trust" sublabel="信任" value={state.trust} tone="cyan" />
-        <StatBar label="fear" sublabel="恐惧" value={state.fear} tone="amber" />
-        <StatBar label="anger" sublabel="愤怒" value={state.anger} tone="rose" />
+        <StatBar label="信任" sublabel="trust" value={state.trust} tone="cyan" />
+        <StatBar label="恐惧" sublabel="fear" value={state.fear} tone="amber" />
+        <StatBar label="愤怒" sublabel="anger" value={state.anger} tone="rose" />
         <StatBar
-          label="tianDaoAlert"
-          sublabel="天道警戒"
+          label="天道警戒"
+          sublabel="tianDaoAlert"
           value={state.tianDaoAlert}
           tone="violet"
         />

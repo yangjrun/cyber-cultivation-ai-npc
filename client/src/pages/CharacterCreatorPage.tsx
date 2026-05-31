@@ -95,7 +95,7 @@ export function CharacterCreatorPage() {
     >
       <header className="flex items-start justify-between border-b border-cyan-400/15 pb-3">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.4em] text-cyan-300/70">// avatar_init</div>
+          <div className="text-[11px] uppercase tracking-wider text-cyan-300/85">身份注入</div>
           <h1 id="creator-heading" className="mt-1 text-2xl font-semibold text-cyan-50 cultivation-glow-text">
             注入身份
           </h1>

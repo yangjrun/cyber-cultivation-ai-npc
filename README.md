@@ -12,6 +12,8 @@
 - 会话与存档：浏览器只保存 `sessionId`，后端用 SQLite 恢复玩家、NPC、背包、任务、记忆和世界状态。
 - 记忆系统：每个会话/NPC 维护近期记忆，并支持向量检索；默认本地 hash embedding，可切换 OpenAI-compatible embedding。
 - RPG 子系统：修炼、突破、炼丹、背包、任务、法宝、人格演化、编年史和 debug metrics。
+- 经济系统：多样化赚钱机制，包括炼丹卖药、采集资源、接受委托任务和境界被动收入（凝聚灵石）；动态定价基于 NPC 心情、库存和玩家境界。
+- 交易系统：与 NPC 进行买卖交易，价格受 NPC 好感度、恐惧、愤怒影响；NPC 商店有独立的灵石余额和库存，支持物品品质（普通/良品/上品）定价。
 - Mock LLM 模式：未配置 `LLM_API_KEY` 时自动使用 deterministic mock responder，方便本地开发和 E2E。
 
 ## 技术栈
@@ -167,6 +169,8 @@ scripts/dev.mjs         跨平台后台开发启动器
 - `POST /api/chat/reset`：重置指定 NPC 对话状态和记忆。
 - `/api/scenes`、`/api/quests`、`/api/memory`、`/api/personality`：场景、任务、记忆和人格相关接口。
 - `/api/cultivate`、`/api/breakthrough`、`/api/alchemy`、`/api/inventory`、`/api/artifacts`：RPG 子系统接口。
+- `/api/economy`：经济系统接口，包括被动收入领取和经济统计。
+- `/api/trade`：交易系统接口，支持查看 NPC 商店、买入和卖出物品。
 - `/api/chronicle`：编年史接口。
 - `/api/debug`：开发环境默认启用；生产环境默认关闭，除非设置 `ENABLE_DEBUG_API=true`。
 

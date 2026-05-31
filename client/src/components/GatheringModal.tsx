@@ -24,7 +24,7 @@ export function GatheringModal() {
       <div className="cultivation-panel cultivation-panel--emerald cultivation-corner w-full max-w-lg p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-300/70">// gathering_field</p>
+            <p className="text-[11px] uppercase tracking-wider text-emerald-300/85">采集地点</p>
             <h2 className="mt-1 text-xl font-semibold text-emerald-100">采集</h2>
           </div>
           <button

@@ -77,8 +77,8 @@ export function MemoryCrystalPage() {
       <header className="flex items-end justify-between border-b border-cyan-400/15 pb-3">
         <div>
           <h1 className="text-lg font-semibold text-cyan-50 cultivation-glow-text">记忆水晶</h1>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.35em] text-cyan-200/60">
-            // memory_crystal · 显示 NPC 记得你的什么 + 人格演化
+          <p className="mt-1 text-xs uppercase tracking-wider text-cyan-200/85">
+            记忆水晶 · 显示 NPC 记得你的什么 + 人格演化
           </p>
         </div>
         <Link

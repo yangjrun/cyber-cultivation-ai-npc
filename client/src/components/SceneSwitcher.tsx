@@ -17,7 +17,7 @@ export function SceneSwitcher() {
       aria-label="场景切换"
       className="cultivation-panel cultivation-corner flex items-center gap-2 overflow-x-auto p-3"
     >
-      <span className="text-[10px] uppercase tracking-[0.35em] text-cyan-300/70">// scene</span>
+      <span className="text-[11px] uppercase tracking-wider text-cyan-300/85">场景</span>
       <div className="flex flex-wrap gap-2">
         {scenes.map((scene) => (
           <SceneTab

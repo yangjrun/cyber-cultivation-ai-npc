@@ -42,8 +42,8 @@ describe("QuestLog", () => {
   it("shows placeholder when there are no quests", () => {
     render(<QuestLog />);
     expect(screen.getByText("还没有任何任务记录。")).toBeTruthy();
-    expect(screen.getByText(/active 0/)).toBeTruthy();
-    expect(screen.getByText(/done 0/)).toBeTruthy();
+    expect(screen.getByText(/进行中 0/)).toBeTruthy();
+    expect(screen.getByText(/已完成 0/)).toBeTruthy();
   });
 
   it("renders accepted + in_progress quests in the active section header counts", () => {
@@ -56,8 +56,8 @@ describe("QuestLog", () => {
     });
 
     render(<QuestLog />);
-    expect(screen.getByText(/active 2/)).toBeTruthy();
-    expect(screen.getByText(/done 1/)).toBeTruthy();
+    expect(screen.getByText(/进行中 2/)).toBeTruthy();
+    expect(screen.getByText(/已完成 1/)).toBeTruthy();
     expect(screen.getByText("偷监察密钥")).toBeTruthy();
     expect(screen.getByText("潜入九龙下城")).toBeTruthy();
     expect(screen.getByText("买灵脉丹")).toBeTruthy();
